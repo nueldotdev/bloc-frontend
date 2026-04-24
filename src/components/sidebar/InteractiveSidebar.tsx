@@ -212,7 +212,7 @@ export default function InteractiveSidebar({
                                 >
                                     {formatTimestamp(note.timestamp)}
                                 </button>
-                                <p className="text-sm leading-relaxed text-foreground/90 break-words flex-1">
+                                <p className="text-sm leading-relaxed text-foreground/90 wrap-break-word flex-1">
                                     {note.text}
                                 </p>
                             </div>

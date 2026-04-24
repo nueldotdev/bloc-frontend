@@ -5,6 +5,8 @@ import type { PlayerHandle } from "@/components/video/Player"
 import InteractiveSidebar, { type Note, type ChatMessage } from "@/components/sidebar/InteractiveSidebar"
 import QuizOverlay from "@/components/video/QuizOverlay"
 import { getGeminiResponse } from "@/lib/gemini"
+import api from "@/lib/api"
+import type { API_Response } from "@/lib/types"
 
 interface QueueItem {
     id: string;
@@ -59,6 +61,7 @@ export default function Watchpage() {
     // Player status
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(0)
+    const [videoTranscript, setVideoTranscript] = useState("")
 
     // Save Session on Change
     useEffect(() => {
@@ -74,7 +77,7 @@ export default function Watchpage() {
         }
         console.log("[Watchpage] Saving session to localStorage", session)
         localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
-    }, [queue, videoDataMap])
+    }, [queue, videoDataMap, videoTranscript])
 
     // Dynamic Sanity check timer
     useEffect(() => {
@@ -107,6 +110,16 @@ export default function Watchpage() {
             return data.title || id
         } catch (e) {
             return id
+        }
+    }
+
+    const fetchTranscript = async (id: string) => {
+        try {
+            const transcript = await api.get<API_Response>(`transcripts/${id}`);
+            return transcript.data.text;
+        } catch (e) {
+            console.error("Failed to fetch transcript", e);
+            return "";
         }
     }
 
@@ -209,7 +222,11 @@ export default function Watchpage() {
             }))
 
             const contextText = `The user is watching a video titled "${videoTitle}" at the timestamp ${Math.floor(currentTime)} seconds.`
-            const aiResponse = await getGeminiResponse(`${contextText}\n\n${text}`, history)
+            const aiResponse = await getGeminiResponse(
+                `${contextText}\n\n${text}`,
+                history,
+                videoTranscript
+            )
 
             const aiMsg: ChatMessage = { 
                 id: Date.now().toString(), 
@@ -240,7 +257,7 @@ export default function Watchpage() {
                 }
             }))
         }
-    }, [videoId, currentTime, queue, videoDataMap])
+    }, [videoId, currentTime, queue, videoDataMap, videoTranscript])
 
     const handleQuizCorrect = () => {
         setIsQuizActive(false)
@@ -261,7 +278,7 @@ export default function Watchpage() {
                 {isQuizActive && <QuizOverlay onCorrect={handleQuizCorrect} />}
                 
                 {notification && !isQuizActive && (
-                    <div className="absolute top-8 z-[60] bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl shadow-2xl animate-in slide-in-from-top-4 fade-in duration-500">
+                    <div className="absolute top-8 z-60 bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl shadow-2xl animate-in slide-in-from-top-4 fade-in duration-500">
                         <div className="flex items-center gap-3">
                             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                             <p className="text-sm font-medium text-white/90">{notification}</p>
