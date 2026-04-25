@@ -128,3 +128,9 @@
     @apply font-sans;
     }
 }
+
+@layer components {
+  .keyword {
+    @apply italic text-zinc-800
+  }
+}

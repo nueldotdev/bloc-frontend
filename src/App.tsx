@@ -1,6 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import './App.css'
-import Homepage from '@/pages/Homepage'
+import Landing from '@/pages/Landing'
 import Watchpage from '@/pages/Watchpage'
 import { ModeToggle } from '@/components/mode-toggle'
 
@@ -8,11 +8,11 @@ function App() {
 
   return (
     <>
-      <div className="absolute bottom-4 right-4 z-50">
+      <div className="fixed bottom-4 left-4 z-50">
         <ModeToggle />
       </div>
       <Routes>
-        <Route path='/' element={<Homepage />} />
+        <Route path='/' element={<Landing />} />
         <Route path='/watch' element={<Watchpage />} />
       </Routes>
     </>
