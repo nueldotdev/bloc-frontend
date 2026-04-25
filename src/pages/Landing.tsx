@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import heroImage from "@/assets/hero.png"
+import { useAuth } from "@/components/auth-provider"
 import { 
   Layout, 
   MessageSquare, 
@@ -12,14 +13,16 @@ import {
   Notebook, 
   ArrowRight, 
   PlayCircle,
-  CheckCircle2,
   FolderCode,
-  X
+  // Twitter,
+  LogOut,
+  User as UserIcon
 } from "lucide-react"
 
 const Landing = () => {
 	const [url, setUrl] = useState("")
 	const navigate = useNavigate()
+    const { user, signInWithGoogle, signOut } = useAuth()
 
 	const scrollInto = (id: string) => {
 		document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
@@ -80,13 +83,28 @@ const Landing = () => {
 					</Button>
 				</div>
 				<div className="flex gap-3">
-					<Button variant="outline" size="sm" className="hidden sm:flex cursor-pointer">Login</Button>
-					<Button size="sm" className="cursor-pointer" onClick={() => scrollInto("hero")}>Get Started</Button>
+					{user ? (
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border">
+                                <UserIcon className="w-4 h-4 text-primary" />
+                                <span className="text-xs font-medium truncate max-w-[120px]">{user.email}</span>
+                            </div>
+                            <Button variant="outline" size="sm" className="cursor-pointer" onClick={signOut}>
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Logout
+                            </Button>
+                        </div>
+                    ) : (
+                        <>
+                            <Button variant="outline" size="sm" className="hidden sm:flex cursor-pointer" onClick={signInWithGoogle}>Login</Button>
+					        <Button size="sm" className="cursor-pointer" onClick={signInWithGoogle}>Register</Button>
+                        </>
+                    )}
 				</div>
 			</nav>
 
             {/* Hero Section */}
-			<section id="hero" className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
+			<section id="hero" className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden h-screen">
                 {/* Background Blobs */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 pointer-events-none">
                     <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />

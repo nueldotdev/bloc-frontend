@@ -1,9 +1,21 @@
+import { supabase } from "./supabase"
+
 const BASE_URL = import.meta.env.VITE_API_URL
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(session ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+  }
+
   const res = await fetch(`${BASE_URL}/${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
+    ...options,
+    headers: {
+      ...headers,
+      ...options?.headers
+    }
   })
 
   if (!res.ok) throw new Error(`Request failed: ${res.status}`)

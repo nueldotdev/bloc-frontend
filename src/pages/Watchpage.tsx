@@ -4,9 +4,9 @@ import Player from "@/components/video/Player"
 import type { PlayerHandle } from "@/components/video/Player"
 import InteractiveSidebar, { type Note, type ChatMessage } from "@/components/sidebar/InteractiveSidebar"
 import QuizOverlay from "@/components/video/QuizOverlay"
-import { getGeminiResponse } from "@/lib/gemini"
 import api from "@/lib/api"
 import type { API_Response } from "@/lib/types"
+import { useAuth } from "@/components/auth-provider"
 
 interface QueueItem {
     id: string;
@@ -31,6 +31,7 @@ export default function Watchpage() {
     const playlistId = searchParams.get("list")
     const playerRef = useRef<PlayerHandle>(null)
     const isInitialLoad = useRef(true)
+    const { user } = useAuth()
     
     // UI State
     const [activePanel, setActivePanel] = useState<"chat" | "notes" | "queue" | null>(null)
@@ -63,25 +64,52 @@ export default function Watchpage() {
     const [duration, setDuration] = useState(0)
     const [videoTranscript, setVideoTranscript] = useState("")
 
-    // Save Session on Change
+    // Save Session on Change (Local only)
     useEffect(() => {
-        // Skip the very first run since we initialized from storage
-        if (isInitialLoad.current) {
-            isInitialLoad.current = false
-            return
+        if (!user) {
+            const session: BlocSession = {
+                queue,
+                videoData: videoDataMap
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
         }
+    }, [queue, videoDataMap, user])
 
-        const session: BlocSession = {
-            queue,
-            videoData: videoDataMap
-        }
-        console.log("[Watchpage] Saving session to localStorage", session)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
-    }, [queue, videoDataMap, videoTranscript])
-
-    // Dynamic Sanity check timer
+    // Load data from server if logged in
     useEffect(() => {
-        if (!videoId || duration <= 0) return;
+        const loadServerData = async () => {
+            if (user && videoId) {
+                try {
+                    const [notesRes, chatRes] = await Promise.all([
+                        api.get<{ data: Note[] }>(`notes/${videoId}`),
+                        api.get<{ data: any[] }>(`gemini/history/${videoId}`)
+                    ])
+                    
+                    const chats: ChatMessage[] = chatRes.data.map((c: any) => ({
+                        id: c.id,
+                        role: c.role,
+                        text: c.text,
+                        timestamp: c.timestamp
+                    }))
+
+                    setVideoDataMap(prev => ({
+                        ...prev,
+                        [videoId]: { 
+                            notes: notesRes.data || [], 
+                            chats: chats || [] 
+                        }
+                    }))
+                } catch (error) {
+                    console.error("Failed to load server data", error)
+                }
+            }
+        }
+        loadServerData()
+    }, [user, videoId])
+
+    // Dynamic Sanity check timer (Auth only)
+    useEffect(() => {
+        if (!user || !videoId || duration <= 0) return;
         let intervalSeconds = 8 * 60;
         if (duration < 300) intervalSeconds = 90;
         else if (duration < 1200) intervalSeconds = 240;
@@ -101,7 +129,7 @@ export default function Watchpage() {
             clearInterval(interval)
             clearTimeout(timer)
         }
-    }, [videoId, isQuizActive, duration])
+    }, [videoId, isQuizActive, duration, user])
 
     const fetchTitle = async (id: string) => {
         try {
@@ -118,12 +146,12 @@ export default function Watchpage() {
             const transcript = await api.get<API_Response>(`transcripts/${id}`);
             return transcript.data.text;
         } catch (e) {
-            console.error("Failed to fetch transcript", e);
+            console.error("Failed to fetch transcript", id, e);
             return "";
         }
     }
 
-    // Initialize current video in session
+    // Initialize current video
     useEffect(() => {
         const init = async () => {
             if (videoId) {
@@ -132,8 +160,11 @@ export default function Watchpage() {
                     const title = await fetchTitle(videoId)
                     setQueue(prev => prev.find(i => i.id === videoId) ? prev : [...prev, { id: videoId, title }])
                 }
-                // Ensure video data entry exists
-                if (!videoDataMap[videoId]) {
+                
+                const transcript = await fetchTranscript(videoId)
+                setVideoTranscript(transcript)
+
+                if (!videoDataMap[videoId] && !user) {
                     setVideoDataMap(prev => ({
                         ...prev,
                         [videoId]: { notes: [], chats: [] }
@@ -142,7 +173,7 @@ export default function Watchpage() {
             }
         }
         init()
-    }, [videoId])
+    }, [videoId, user])
 
     const handlePlaylistLoaded = useCallback(async (ids: string[]) => {
         const newIds = ids.filter(id => !queue.find(item => item.id === id))
@@ -181,24 +212,50 @@ export default function Watchpage() {
         }
     }, [videoId, queue, handlePlayFromQueue])
 
-    const handleAddNote = useCallback((text: string) => {
+    const handleAddNote = useCallback(async (text: string) => {
         if (!videoId) return
-        const newNote: Note = {
-            id: Date.now().toString(),
-            timestamp: currentTime,
-            text
-        }
-        setVideoDataMap(prev => ({
-            ...prev,
-            [videoId]: {
-                ...prev[videoId],
-                notes: [newNote, ...(prev[videoId]?.notes || [])]
+        
+        if (user) {
+            try {
+                const res = await api.post<{ data: Note }>("notes", {
+                    videoId,
+                    text,
+                    timestamp: currentTime
+                })
+                setVideoDataMap(prev => ({
+                    ...prev,
+                    [videoId]: {
+                        ...prev[videoId],
+                        notes: [res.data, ...(prev[videoId]?.notes || [])]
+                    }
+                }))
+            } catch (error) {
+                console.error("Failed to save note to server", error)
             }
-        }))
-    }, [videoId, currentTime])
+        } else {
+            const newNote: Note = {
+                id: Date.now().toString(),
+                timestamp: currentTime,
+                text
+            }
+            setVideoDataMap(prev => ({
+                ...prev,
+                [videoId]: {
+                    ...prev[videoId],
+                    notes: [newNote, ...(prev[videoId]?.notes || [])]
+                }
+            }))
+        }
+    }, [videoId, currentTime, user])
 
     const handleSendMessage = useCallback(async (text: string) => {
         if (!videoId) return
+
+        if (!user) {
+            setNotification("AI features are available for logged-in students only!")
+            setTimeout(() => setNotification(null), 3000)
+            return
+        }
         
         const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", text, timestamp: currentTime }
         
@@ -221,17 +278,19 @@ export default function Watchpage() {
                 parts: [{ text: msg.text }]
             }))
 
-            const contextText = `The user is watching a video titled "${videoTitle}" at the timestamp ${Math.floor(currentTime)} seconds.`
-            const aiResponse = await getGeminiResponse(
-                `${contextText}\n\n${text}`,
+            const res = await api.post<{ text: string }>("gemini/chat", {
+                message: text,
                 history,
-                videoTranscript
-            )
+                videoId,
+                videoTranscript,
+                timestamp: currentTime,
+                videoTitle
+            })
 
             const aiMsg: ChatMessage = { 
                 id: Date.now().toString(), 
                 role: "ai", 
-                text: aiResponse,
+                text: res.text,
                 timestamp: currentTime 
             }
             
@@ -247,7 +306,7 @@ export default function Watchpage() {
             const errorMsg: ChatMessage = { 
                 id: Date.now().toString(), 
                 role: "ai", 
-                text: "Sorry, I encountered an error connecting to my brain. Please check your API key!",
+                text: "Sorry, I encountered an error. Please make sure you are logged in correctly!",
             }
             setVideoDataMap(prev => ({
                 ...prev,
@@ -257,7 +316,7 @@ export default function Watchpage() {
                 }
             }))
         }
-    }, [videoId, currentTime, queue, videoDataMap, videoTranscript])
+    }, [videoId, currentTime, queue, videoDataMap, videoTranscript, user])
 
     const handleQuizCorrect = () => {
         setIsQuizActive(false)
@@ -265,6 +324,11 @@ export default function Watchpage() {
     }
 
     const triggerQuizManual = () => {
+        if (!user) {
+            setNotification("Sanity checks are for logged-in students only!")
+            setTimeout(() => setNotification(null), 3000)
+            return
+        }
         setIsQuizActive(true);
         playerRef.current?.pauseVideo();
     }
@@ -353,6 +417,16 @@ export default function Watchpage() {
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
                     </button>
+
+                    <div className="mt-auto pb-4">
+                         <button 
+                            onClick={() => navigate('/')}
+                            className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
+                            title="Back to Landing"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
