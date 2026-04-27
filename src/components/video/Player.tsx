@@ -19,12 +19,14 @@ export const Player = forwardRef<PlayerHandle, {
     onProgress: (time: number) => void,
     onDuration?: (duration: number) => void,
     onEnded?: () => void,
-    onPlaylistLoaded?: (ids: string[]) => void
-}>(({ videoId, playlistId, onProgress, onDuration, onEnded, onPlaylistLoaded }, ref) => {
+    onPlaylistLoaded?: (ids: string[]) => void,
+    onVideoChange?: (videoId: string) => void
+}>(({ videoId, playlistId, onProgress, onDuration, onEnded, onPlaylistLoaded, onVideoChange }, ref) => {
     const [isReady, setIsReady] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const playerRef = useRef<any>(null)
     const containerRef = useRef<HTMLDivElement>(null)
+    const lastVideoIdRef = useRef<string>(videoId)
 
     useImperativeHandle(ref, () => ({
         seekTo: (seconds: number) => {
@@ -88,7 +90,18 @@ export const Player = forwardRef<PlayerHandle, {
                         }
                     },
                     onStateChange: (event: any) => {
+                        // event.data: 
                         // YT.PlayerState.ENDED = 0
+                        // YT.PlayerState.PLAYING = 1
+                        
+                        if (event.data === 1) { // PLAYING
+                            const currentId = playerRef.current.getVideoData()?.video_id
+                            if (currentId && currentId !== lastVideoIdRef.current) {
+                                lastVideoIdRef.current = currentId
+                                if (onVideoChange) onVideoChange(currentId)
+                            }
+                        }
+
                         if (event.data === 0 && onEnded) {
                             onEnded()
                         }
@@ -101,10 +114,8 @@ export const Player = forwardRef<PlayerHandle, {
             }
 
             if (playlistId) {
-                // If we have a playlist ID, we use the listType to load the whole thing
                 playerConfig.playerVars.listType = 'playlist'
                 playerConfig.playerVars.list = playlistId
-                // If no specific videoId was provided, YouTube will start at the beginning
             }
 
             playerRef.current = new window.YT.Player(containerRef.current, playerConfig)
@@ -142,7 +153,7 @@ export const Player = forwardRef<PlayerHandle, {
                 } catch (e) {}
             }
         }
-    }, [videoId, onProgress])
+    }, [videoId, playlistId, onProgress])
 
     return (
         <div className="w-full h-full relative bg-black flex items-center justify-center overflow-hidden">

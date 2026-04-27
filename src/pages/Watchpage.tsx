@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import Player from "@/components/video/Player"
 import type { PlayerHandle } from "@/components/video/Player"
-import InteractiveSidebar, { type Note, type ChatMessage } from "@/components/sidebar/InteractiveSidebar"
+import InteractiveSidebar, { type Note, type ChatMessage, type Session, type Topic } from "@/components/sidebar/InteractiveSidebar"
 import QuizOverlay from "@/components/video/QuizOverlay"
 import api from "@/lib/api"
 import type { API_Response } from "@/lib/types"
@@ -16,6 +16,7 @@ interface QueueItem {
 interface VideoData {
     notes: Note[];
     chats: ChatMessage[];
+    topics?: Topic[];
 }
 
 interface BlocSession {
@@ -27,6 +28,7 @@ const STORAGE_KEY = "bloc_current_session"
 
 export default function Watchpage() {
     const [searchParams, setSearchParams] = useSearchParams()
+    const navigate = useNavigate()
     const videoId = searchParams.get("v")
     const playlistId = searchParams.get("list")
     const playerRef = useRef<PlayerHandle>(null)
@@ -34,11 +36,13 @@ export default function Watchpage() {
     const { user } = useAuth()
     
     // UI State
-    const [activePanel, setActivePanel] = useState<"chat" | "notes" | "queue" | null>(null)
+    const [activePanel, setActivePanel] = useState<"chat" | "notes" | "queue" | "topics" | "sessions" | null>(null)
     const [isQuizActive, setIsQuizActive] = useState(false)
     const [notification, setNotification] = useState<string | null>(null)
+    const [isGeneratingTopics, setIsGeneratingTopics] = useState(false)
+    const [isAiLoading, setIsAiLoading] = useState(false)
     
-    // Core Session State - Initialize directly from localStorage to prevent overwrite
+    // Core Session State
     const [queue, setQueue] = useState<QueueItem[]>(() => {
         const saved = localStorage.getItem(STORAGE_KEY)
         if (saved) {
@@ -58,11 +62,35 @@ export default function Watchpage() {
         }
         return {}
     })
+
+    // Auth Sessions State
+    const [sessions, setSessions] = useState<Session[]>([])
+    const [currentSessionId, setCurrentSessionId] = useState<string>(() => {
+        return localStorage.getItem("bloc_active_session_id") || ""
+    })
     
     // Player status
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(0)
     const [videoTranscript, setVideoTranscript] = useState("")
+    const [libraryStatus, setLibraryStatus] = useState<{ isSaved: boolean, id?: string }>({ isSaved: false })
+
+    // Check library status
+    useEffect(() => {
+        const checkStatus = async () => {
+            if (videoId && user) {
+                try {
+                    const res = await api.get<{ isSaved: boolean, id?: string }>(`library/status/${videoId}`)
+                    setLibraryStatus(res)
+                } catch (e) {
+                    console.error("Failed to check library status", e)
+                }
+            } else {
+                setLibraryStatus({ isSaved: false })
+            }
+        }
+        checkStatus()
+    }, [videoId, user])
 
     // Save Session on Change (Local only)
     useEffect(() => {
@@ -75,14 +103,34 @@ export default function Watchpage() {
         }
     }, [queue, videoDataMap, user])
 
+    // Load Sessions from server
+    useEffect(() => {
+        const loadSessions = async () => {
+            if (user) {
+                try {
+                    const res = await api.get<{ data: Session[] }>("sessions")
+                    setSessions(res.data)
+                    if (res.data.length > 0 && !currentSessionId) {
+                        const firstSessionId = res.data[0].id
+                        setCurrentSessionId(firstSessionId)
+                        localStorage.setItem("bloc_active_session_id", firstSessionId)
+                    }
+                } catch (error) {
+                    console.error("Failed to load sessions", error)
+                }
+            }
+        }
+        loadSessions()
+    }, [user])
+
     // Load data from server if logged in
     useEffect(() => {
         const loadServerData = async () => {
-            if (user && videoId) {
+            if (user && videoId && currentSessionId) {
                 try {
                     const [notesRes, chatRes] = await Promise.all([
-                        api.get<{ data: Note[] }>(`notes/${videoId}`),
-                        api.get<{ data: any[] }>(`gemini/history/${videoId}`)
+                        api.get<{ data: Note[] }>(`notes/${videoId}?sessionId=${currentSessionId}`),
+                        api.get<{ data: any[] }>(`gemini/history/${videoId}?sessionId=${currentSessionId}`)
                     ])
                     
                     const chats: ChatMessage[] = chatRes.data.map((c: any) => ({
@@ -95,6 +143,7 @@ export default function Watchpage() {
                     setVideoDataMap(prev => ({
                         ...prev,
                         [videoId]: { 
+                            ...prev[videoId],
                             notes: notesRes.data || [], 
                             chats: chats || [] 
                         }
@@ -105,7 +154,74 @@ export default function Watchpage() {
             }
         }
         loadServerData()
-    }, [user, videoId])
+    }, [user, videoId, currentSessionId])
+
+    const lastSyncedQueueRef = useRef<string>("")
+
+    // Sync queue to server when it changes
+    useEffect(() => {
+        const sync = async () => {
+            if (user && currentSessionId) {
+                const queueStr = JSON.stringify(queue)
+                if (queueStr !== lastSyncedQueueRef.current) {
+                    try {
+                        await api.put(`sessions/${currentSessionId}`, { queue })
+                        lastSyncedQueueRef.current = queueStr
+                    } catch (error) {
+                        console.error("Failed to sync queue to server", error)
+                    }
+                }
+            }
+        }
+        
+        // Debounce sync slightly to handle rapid updates
+        const timeout = setTimeout(sync, 1000)
+        return () => clearTimeout(timeout)
+    }, [queue, user, currentSessionId])
+
+    // Load session details (including queue)
+    useEffect(() => {
+        const loadSessionDetails = async () => {
+            if (user && currentSessionId) {
+                try {
+                    const res = await api.get<{ data: any[] }>("sessions")
+                    const current = res.data.find(s => s.id === currentSessionId)
+                    if (current && current.queue) {
+                        const queueStr = JSON.stringify(current.queue)
+                        lastSyncedQueueRef.current = queueStr
+                        setQueue(current.queue)
+                    }
+                } catch (error) {
+                    console.error("Failed to load session details", error)
+                }
+            }
+        }
+        loadSessionDetails()
+    }, [user, currentSessionId])
+
+    // Fetch Topics if missing
+    useEffect(() => {
+        const generateTopics = async () => {
+            if (user && videoId && videoTranscript && !videoDataMap[videoId]?.topics && !isGeneratingTopics) {
+                setIsGeneratingTopics(true)
+                try {
+                    const res = await api.post<{ data: Topic[] }>("gemini/topics", { videoId, videoTranscript })
+                    setVideoDataMap(prev => ({
+                        ...prev,
+                        [videoId]: {
+                            ...prev[videoId],
+                            topics: res.data
+                        }
+                    }))
+                } catch (error) {
+                    console.error("Failed to generate topics", error)
+                } finally {
+                    setIsGeneratingTopics(false)
+                }
+            }
+        }
+        generateTopics()
+    }, [user, videoId, videoTranscript])
 
     // Dynamic Sanity check timer (Auth only)
     useEffect(() => {
@@ -204,6 +320,10 @@ export default function Watchpage() {
         setSearchParams({ v: id, list: playlistId || "" })
     }, [setSearchParams, playlistId])
 
+    const handleRemoveFromQueue = useCallback((id: string) => {
+        setQueue(prev => prev.filter(item => item.id !== id))
+    }, [])
+
     const handleNextVideo = useCallback(() => {
         if (!videoId) return
         const currentIndex = queue.findIndex(i => i.id === videoId)
@@ -215,12 +335,13 @@ export default function Watchpage() {
     const handleAddNote = useCallback(async (text: string) => {
         if (!videoId) return
         
-        if (user) {
+        if (user && currentSessionId) {
             try {
                 const res = await api.post<{ data: Note }>("notes", {
                     videoId,
                     text,
-                    timestamp: currentTime
+                    timestamp: currentTime,
+                    sessionId: currentSessionId
                 })
                 setVideoDataMap(prev => ({
                     ...prev,
@@ -246,7 +367,59 @@ export default function Watchpage() {
                 }
             }))
         }
-    }, [videoId, currentTime, user])
+    }, [videoId, currentTime, user, currentSessionId])
+
+    const handleEditNote = useCallback(async (id: string, text: string) => {
+        if (!videoId) return
+        if (user) {
+            try {
+                const res = await api.put<{ data: Note }>(`notes/${id}`, { text })
+                setVideoDataMap(prev => ({
+                    ...prev,
+                    [videoId]: {
+                        ...prev[videoId],
+                        notes: prev[videoId].notes.map(n => n.id === id ? res.data : n)
+                    }
+                }))
+            } catch (error) {
+                console.error("Failed to edit note", error)
+            }
+        } else {
+            setVideoDataMap(prev => ({
+                ...prev,
+                [videoId]: {
+                    ...prev[videoId],
+                    notes: prev[videoId].notes.map(n => n.id === id ? { ...n, text } : n)
+                }
+            }))
+        }
+    }, [user, videoId])
+
+    const handleDeleteNote = useCallback(async (id: string) => {
+        if (!videoId) return
+        if (user) {
+            try {
+                await api.delete(`notes/${id}`)
+                setVideoDataMap(prev => ({
+                    ...prev,
+                    [videoId]: {
+                        ...prev[videoId],
+                        notes: prev[videoId].notes.filter(n => n.id !== id)
+                    }
+                }))
+            } catch (error) {
+                console.error("Failed to delete note", error)
+            }
+        } else {
+            setVideoDataMap(prev => ({
+                ...prev,
+                [videoId]: {
+                    ...prev[videoId],
+                    notes: prev[videoId].notes.filter(n => n.id !== id)
+                }
+            }))
+        }
+    }, [user, videoId])
 
     const handleSendMessage = useCallback(async (text: string) => {
         if (!videoId) return
@@ -256,6 +429,16 @@ export default function Watchpage() {
             setTimeout(() => setNotification(null), 3000)
             return
         }
+
+        if (!currentSessionId) {
+            setNotification("Please select or create a session first!")
+            setTimeout(() => setNotification(null), 3000)
+            setActivePanel("sessions")
+            return
+        }
+
+        // Switch to chat panel so user sees the message being sent and the response
+        setActivePanel("chat")
         
         const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", text, timestamp: currentTime }
         
@@ -278,13 +461,15 @@ export default function Watchpage() {
                 parts: [{ text: msg.text }]
             }))
 
+            setIsAiLoading(true)
             const res = await api.post<{ text: string }>("gemini/chat", {
                 message: text,
                 history,
                 videoId,
                 videoTranscript,
                 timestamp: currentTime,
-                videoTitle
+                videoTitle,
+                sessionId: currentSessionId
             })
 
             const aiMsg: ChatMessage = { 
@@ -315,8 +500,10 @@ export default function Watchpage() {
                     chats: [...(prev[videoId]?.chats || []), errorMsg]
                 }
             }))
+        } finally {
+            setIsAiLoading(false)
         }
-    }, [videoId, currentTime, queue, videoDataMap, videoTranscript, user])
+    }, [videoId, currentTime, queue, videoDataMap, videoTranscript, user, currentSessionId])
 
     const handleQuizCorrect = () => {
         setIsQuizActive(false)
@@ -333,10 +520,85 @@ export default function Watchpage() {
         playerRef.current?.pauseVideo();
     }
 
+    const handleCreateSession = async (name: string) => {
+        try {
+            const res = await api.post<{ data: Session }>("sessions", { name })
+            setSessions(prev => [res.data, ...prev])
+            setCurrentSessionId(res.data.id)
+            localStorage.setItem("bloc_active_session_id", res.data.id)
+        } catch (error) {
+            console.error("Failed to create session", error)
+        }
+    }
+
+    const handleSwitchSession = (id: string) => {
+        setCurrentSessionId(id)
+        localStorage.setItem("bloc_active_session_id", id)
+    }
+
+    const handleUpdateSession = async (id: string, name: string) => {
+        try {
+            const res = await api.put<{ data: Session }>(`sessions/${id}`, { name })
+            setSessions(prev => prev.map(s => s.id === id ? res.data : s))
+        } catch (error) {
+            console.error("Failed to update session", error)
+        }
+    }
+
+    const handleDeleteSession = async (id: string) => {
+        try {
+            await api.delete(`sessions/${id}`)
+            setSessions(prev => prev.filter(s => s.id !== id))
+            if (currentSessionId === id) {
+                setCurrentSessionId("")
+                localStorage.removeItem("bloc_active_session_id")
+            }
+        } catch (error) {
+            console.error("Failed to delete session", error)
+        }
+    }
+
+    const handleToggleLibrary = async () => {
+        if (!user) {
+            setNotification("Please log in to save videos to your library!")
+            setTimeout(() => setNotification(null), 3000)
+            return
+        }
+
+        if (!videoId) return
+
+        try {
+            if (libraryStatus.isSaved && libraryStatus.id) {
+                await api.delete(`library/${libraryStatus.id}`)
+                setLibraryStatus({ isSaved: false })
+                setNotification("Removed from library")
+            } else {
+                const title = await fetchTitle(videoId)
+                const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+                const res = await api.post<{ data: any }>("library", {
+                    videoId,
+                    title,
+                    thumbnailUrl
+                })
+                setLibraryStatus({ isSaved: true, id: res.data.id })
+                setNotification("Saved to library!")
+            }
+            setTimeout(() => setNotification(null), 2000)
+        } catch (error) {
+            console.error("Library action failed", error)
+        }
+    }
+
+    const handleVideoChange = useCallback((newId: string) => {
+        if (newId && newId !== videoId) {
+            setSearchParams({ v: newId, list: playlistId || "" })
+        }
+    }, [videoId, playlistId, setSearchParams])
+
     const currentVideoData = videoId ? videoDataMap[videoId] : null
 
     return (
-        <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+        <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
             {/* Main Video Area */}
             <div className="flex-1 relative bg-black/95 flex flex-col items-center">
                 {isQuizActive && <QuizOverlay onCorrect={handleQuizCorrect} />}
@@ -359,6 +621,7 @@ export default function Watchpage() {
                         onDuration={setDuration}
                         onEnded={handleNextVideo}
                         onPlaylistLoaded={handlePlaylistLoaded}
+                        onVideoChange={handleVideoChange}
                     />
                 ) : (
                     <div className="flex w-full h-full justify-center items-center text-white">
@@ -383,11 +646,23 @@ export default function Watchpage() {
                             currentVideoId={videoId || ""}
                             onAddToQueue={handleAddToQueue}
                             onPlayFromQueue={handlePlayFromQueue}
+                            onRemoveFromQueue={handleRemoveFromQueue}
                             onTriggerQuizManual={triggerQuizManual}
                             notes={currentVideoData?.notes || []}
                             chatHistory={currentVideoData?.chats || []}
                             onAddNote={handleAddNote}
+                            onEditNote={handleEditNote}
+                            onDeleteNote={handleDeleteNote}
                             onSendMessage={handleSendMessage}
+                            topics={currentVideoData?.topics || []}
+                            sessions={sessions}
+                            currentSessionId={currentSessionId}
+                            onSwitchSession={handleSwitchSession}
+                            onCreateSession={handleCreateSession}
+                            onUpdateSession={handleUpdateSession}
+                            onDeleteSession={handleDeleteSession}
+                            isGeneratingTopics={isGeneratingTopics}
+                            isAiLoading={isAiLoading}
                         />
                     </div>
                 </div>
@@ -411,6 +686,22 @@ export default function Watchpage() {
                     </button>
 
                     <button 
+                        onClick={() => setActivePanel(activePanel === "topics" ? null : "topics")}
+                        className={`p-3 rounded-xl transition-colors ${activePanel === "topics" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+                        title="Topics"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+                    </button>
+
+                    <button 
+                        onClick={() => setActivePanel(activePanel === "sessions" ? null : "sessions")}
+                        className={`p-3 rounded-xl transition-colors ${activePanel === "sessions" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+                        title="Sessions"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
+                    </button>
+
+                    <button 
                         onClick={() => setActivePanel(activePanel === "queue" ? null : "queue")}
                         className={`p-3 rounded-xl transition-colors ${activePanel === "queue" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
                         title="Queue"
@@ -418,7 +709,22 @@ export default function Watchpage() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
                     </button>
 
-                    <div className="mt-auto pb-4">
+                    <button 
+                        onClick={handleToggleLibrary}
+                        className={`p-3 rounded-xl transition-all ${libraryStatus.isSaved ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+                        title={libraryStatus.isSaved ? "Saved to Library" : "Save to Library"}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={libraryStatus.isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                    </button>
+
+                    <div className="mt-auto pb-4 flex flex-col gap-4">
+                         <button 
+                            onClick={() => navigate('/dashboard')}
+                            className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
+                            title="Dashboard"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                        </button>
                          <button 
                             onClick={() => navigate('/')}
                             className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"

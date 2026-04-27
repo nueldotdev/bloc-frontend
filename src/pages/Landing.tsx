@@ -2,7 +2,7 @@ import Logo from "@/components/app/Logo"
 import ScrollToTop from "@/components/app/scrollToTop"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import heroImage from "@/assets/hero.png"
 import { useAuth } from "@/components/auth-provider"
@@ -16,13 +16,20 @@ import {
   FolderCode,
   // Twitter,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
 } from "lucide-react"
+import { ModeToggle } from "@/components/mode-toggle"
 
 const Landing = () => {
 	const [url, setUrl] = useState("")
 	const navigate = useNavigate()
     const { user, signInWithGoogle, signOut } = useAuth()
+
+    useEffect(() => {
+        if (user) {
+            navigate("/dashboard")
+        }
+    }, [user, navigate])
 
 	const scrollInto = (id: string) => {
 		document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
@@ -67,6 +74,9 @@ const Landing = () => {
 	return (
 		<div className="min-h-screen bg-background font-sans selection:bg-primary/10">
 			<ScrollToTop />
+			<div className="fixed bottom-4 left-4 z-50">
+        <ModeToggle />
+      </div>
 			
             {/* Navigation */}
 			<nav className="flex px-6 py-4 items-center justify-between fixed top-0 w-full bg-background/80 backdrop-blur-md z-50 border-b border-border/40">
