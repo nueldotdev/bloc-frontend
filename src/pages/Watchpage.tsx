@@ -32,7 +32,7 @@ export default function Watchpage() {
     const videoId = searchParams.get("v")
     const playlistId = searchParams.get("list")
     const playerRef = useRef<PlayerHandle>(null)
-    const isInitialLoad = useRef(true)
+    // const isInitialLoad = useRef(true)
     const { user } = useAuth()
     
     // UI State

@@ -7,7 +7,6 @@ import {
   Play, 
   Trash2, 
   Search, 
-  BookOpen,
   Video
 } from "lucide-react"
 import DashboardSidebar from "@/components/app/DashboardSidebar"
