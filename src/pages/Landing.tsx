@@ -18,6 +18,7 @@ import {
   LogOut,
   User as UserIcon,
 } from "lucide-react"
+import { FcGoogle } from "react-icons/fc" // Import Google icon
 import { ModeToggle } from "@/components/mode-toggle"
 
 const Landing = () => {
@@ -105,10 +106,14 @@ const Landing = () => {
                             </Button>
                         </div>
                     ) : (
-                        <>
-                            <Button variant="outline" size="sm" className="hidden sm:flex cursor-pointer" onClick={signInWithGoogle}>Login</Button>
-					        <Button size="sm" className="cursor-pointer" onClick={signInWithGoogle}>Register</Button>
-                        </>
+                        <Button 
+                            size="sm" 
+                            className="cursor-pointer flex items-center gap-2 px-4 h-9 rounded-xl font-semibold shadow-md border border-input bg-background text-foreground hover:bg-muted/50 transition-colors" 
+                            onClick={signInWithGoogle}
+                        >
+                            <FcGoogle className="w-5 h-5" />
+                            Sign in with Google
+                        </Button>
                     )}
 				</div>
 			</nav>
