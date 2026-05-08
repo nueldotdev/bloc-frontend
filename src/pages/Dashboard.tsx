@@ -11,7 +11,9 @@ import {
   Search, 
   BookOpen,
   Trash2,
-  Edit3
+  Edit3,
+  Globe,
+  Lock
 } from "lucide-react"
 import { type Session } from "@/components/sidebar/InteractiveSidebar"
 import DashboardSidebar from "@/components/app/DashboardSidebar"
@@ -112,13 +114,19 @@ export default function Dashboard() {
     }
   }
 
-  const handleUpdateSession = async (id: string, name: string, e: React.MouseEvent) => {
+  const handleUpdateSession = async (id: string, currentSession: any, e: React.MouseEvent) => {
     e.stopPropagation()
-    const newName = prompt("Enter new session name:", name)
-    if (!newName || newName === name) return
+    const newName = prompt("Enter new session name:", currentSession.name)
+    if (newName === null) return
+
+    const newDescription = prompt("Enter session description:", currentSession.description || "")
+    if (newDescription === null) return
 
     try {
-      const res = await api.put<{ data: Session }>(`sessions/${id}`, { name: newName })
+      const res = await api.put<{ data: Session }>(`sessions/${id}`, { 
+          name: newName || currentSession.name,
+          description: newDescription
+      })
       setSessions(prev => prev.map(s => s.id === id ? res.data : s))
     } catch (error) {
       console.error("Failed to update session", error)
@@ -294,8 +302,25 @@ export default function Dashboard() {
                                     <Button 
                                         variant="ghost" 
                                         size="icon" 
+                                        className={`h-9 w-9 rounded-xl shadow-sm border border-border/40 transition-all ${(session as any).is_public ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+                                        title={(session as any).is_public ? "Publicly Shared" : "Private"}
+                                        onClick={async (e) => {
+                                            e.stopPropagation()
+                                            try {
+                                                const res = await api.put<{ data: any }>(`sessions/${session.id}`, { isPublic: !(session as any).is_public })
+                                                setSessions(prev => prev.map(s => s.id === session.id ? res.data : s))
+                                            } catch (error) {
+                                                console.error("Failed to toggle privacy", error)
+                                            }
+                                        }}
+                                    >
+                                        {(session as any).is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
                                         className="h-9 w-9 rounded-xl text-muted-foreground hover:text-primary hover:bg-background shadow-sm border border-border/40 transition-all"
-                                        onClick={(e) => handleUpdateSession(session.id, session.name, e)}
+                                        onClick={(e) => handleUpdateSession(session.id, session, e)}
                                     >
                                         <Edit3 className="w-4 h-4" />
                                     </Button>

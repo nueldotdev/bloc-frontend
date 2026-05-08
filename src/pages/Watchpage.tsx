@@ -4,6 +4,7 @@ import Player from "@/components/video/Player"
 import type { PlayerHandle } from "@/components/video/Player"
 import InteractiveSidebar, { type Note, type ChatMessage, type Session, type Topic } from "@/components/sidebar/InteractiveSidebar"
 import QuizOverlay from "@/components/video/QuizOverlay"
+import FinalQuizOverlay from "@/components/video/FinalQuizOverlay"
 import api from "@/lib/api"
 import type { API_Response } from "@/lib/types"
 import { useAuth } from "@/components/auth-provider"
@@ -38,6 +39,9 @@ export default function Watchpage() {
     // UI State
     const [activePanel, setActivePanel] = useState<"chat" | "notes" | "queue" | "topics" | "sessions" | null>(null)
     const [isQuizActive, setIsQuizActive] = useState(false)
+    const [isFinalQuizActive, setIsFinalQuizActive] = useState(false)
+    const [finalQuizData, setFinalQuizData] = useState<any[]>([])
+    const [isGeneratingFinalQuiz, setIsGeneratingFinalQuiz] = useState(false)
     const [notification, setNotification] = useState<string | null>(null)
     const [isGeneratingTopics, setIsGeneratingTopics] = useState(false)
     const [isAiLoading, setIsAiLoading] = useState(false)
@@ -332,6 +336,30 @@ export default function Watchpage() {
         }
     }, [videoId, queue, handlePlayFromQueue])
 
+    const handleVideoEnded = useCallback(async () => {
+        if (!user || !videoId || !videoTranscript) {
+            handleNextVideo()
+            return
+        }
+
+        setIsGeneratingFinalQuiz(true)
+        try {
+            const currentVideo = queue.find(q => q.id === videoId)
+            const res = await api.post<{ data: any[] }>("gemini/final-quiz", {
+                videoId,
+                videoTranscript,
+                videoTitle: currentVideo?.title || "Unknown Video"
+            })
+            setFinalQuizData(res.data)
+            setIsFinalQuizActive(true)
+        } catch (error) {
+            console.error("Failed to generate final quiz", error)
+            handleNextVideo()
+        } finally {
+            setIsGeneratingFinalQuiz(false)
+        }
+    }, [user, videoId, videoTranscript, queue, handleNextVideo])
+
     const handleAddNote = useCallback(async (text: string) => {
         if (!videoId) return
         
@@ -602,8 +630,25 @@ export default function Watchpage() {
             {/* Main Video Area */}
             <div className="flex-1 relative bg-black/95 flex flex-col items-center">
                 {isQuizActive && <QuizOverlay onCorrect={handleQuizCorrect} />}
+                {isFinalQuizActive && (
+                    <FinalQuizOverlay 
+                        quizData={finalQuizData} 
+                        onClose={() => {
+                            setIsFinalQuizActive(false)
+                            handleNextVideo()
+                        }} 
+                    />
+                )}
                 
-                {notification && !isQuizActive && (
+                {isGeneratingFinalQuiz && (
+                    <div className="absolute inset-0 z-[100] bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
+                         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6" />
+                         <h3 className="text-xl font-bold">Generating Final Assessment...</h3>
+                         <p className="text-muted-foreground text-sm">Gemini is analyzing your session to create a custom quiz.</p>
+                    </div>
+                )}
+                
+                {notification && !isQuizActive && !isFinalQuizActive && !isGeneratingFinalQuiz && (
                     <div className="absolute top-8 z-60 bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl shadow-2xl animate-in slide-in-from-top-4 fade-in duration-500">
                         <div className="flex items-center gap-3">
                             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -619,7 +664,7 @@ export default function Watchpage() {
                         playlistId={playlistId || ""}
                         onProgress={handleProgress}
                         onDuration={setDuration}
-                        onEnded={handleNextVideo}
+                        onEnded={handleVideoEnded}
                         onPlaylistLoaded={handlePlaylistLoaded}
                         onVideoChange={handleVideoChange}
                     />

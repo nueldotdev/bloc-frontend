@@ -6,7 +6,8 @@ import {
   Video, 
   BookOpen,
   LayoutDashboard,
-  LogOut
+  LogOut,
+  Compass
 } from "lucide-react"
 import { ModeToggle } from "../mode-toggle"
 
@@ -20,6 +21,11 @@ export default function DashboardSidebar() {
         name: 'Dashboard', 
         path: '/dashboard', 
         icon: LayoutDashboard 
+    },
+    { 
+        name: 'Explore', 
+        path: '/explore', 
+        icon: Compass 
     },
     { 
         name: 'Library', 
