@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Check, X, RefreshCw, Trophy, ChevronRight, ChevronLeft } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { Check, ChevronRight, Trophy, X } from "lucide-react";
+import { useState } from "react";
 
 interface Question {
     id: number;
@@ -10,12 +10,12 @@ interface Question {
     explanation: string;
 }
 
-export default function FinalQuizOverlay({ 
-    quizData, 
-    onClose 
-}: { 
-    quizData: Question[], 
-    onClose: () => void 
+export default function FinalQuizOverlay({
+    quizData,
+    onClose
+}: {
+    quizData: Question[],
+    onClose: () => void
 }) {
     const [currentStep, setCurrentStep] = useState<"intro" | "quiz" | "result">("intro")
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -28,7 +28,7 @@ export default function FinalQuizOverlay({
         const question = quizData[currentQuestionIndex]
         setAnswers(prev => ({ ...prev, [question.id]: option }))
         setShowExplanation(true)
-        
+
         if (option === question.correctAnswer) {
             setScore(prev => prev + 1)
         }
@@ -47,7 +47,7 @@ export default function FinalQuizOverlay({
 
     if (currentStep === "intro") {
         return (
-            <div className="absolute inset-0 z-[100] bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-500">
+            <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-500">
                 <div className="max-w-md w-full bg-card border border-border p-10 rounded-[3rem] shadow-2xl text-center space-y-8">
                     <div className="w-20 h-20 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary mx-auto shadow-inner">
                         <Trophy className="w-10 h-10" />
@@ -70,7 +70,7 @@ export default function FinalQuizOverlay({
     if (currentStep === "result") {
         const percentage = (score / quizData.length) * 100
         return (
-            <div className="absolute inset-0 z-[100] bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in zoom-in duration-500">
+            <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in zoom-in duration-500">
                 <div className="max-w-md w-full bg-card border border-border p-10 rounded-[3rem] shadow-2xl text-center space-y-8">
                     <div className="relative w-32 h-32 mx-auto">
                         <svg className="w-full h-full" viewBox="0 0 100 100">
@@ -103,7 +103,7 @@ export default function FinalQuizOverlay({
     const selectedAnswer = answers[currentQuestion.id]
 
     return (
-        <div className="absolute inset-0 z-[100] bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-300">
+        <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-300">
             <div className="max-w-2xl w-full bg-card border border-border p-8 md:p-12 rounded-[3rem] shadow-2xl space-y-8 overflow-y-auto max-h-[90vh]">
                 <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/10">
@@ -118,13 +118,13 @@ export default function FinalQuizOverlay({
 
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold leading-tight text-foreground">{currentQuestion.question}</h2>
-                    
+
                     <div className="grid gap-3">
                         {currentQuestion.options.map((option, i) => {
                             const letter = getOptionLetter(i)
                             const isSelected = selectedAnswer === letter
                             const isCorrect = letter === currentQuestion.correctAnswer
-                            
+
                             let stateClass = "border-border hover:border-primary/30 hover:bg-muted/30"
                             if (showExplanation) {
                                 if (isCorrect) stateClass = "border-green-500 bg-green-500/10 text-green-600"
@@ -157,8 +157,8 @@ export default function FinalQuizOverlay({
                     <div className="bg-muted/30 p-6 rounded-[2rem] border border-border/50 animate-in slide-in-from-top-4 duration-500">
                         <p className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Explanation</p>
                         <p className="text-sm leading-relaxed text-foreground/80">{currentQuestion.explanation}</p>
-                        <Button 
-                            onClick={nextQuestion} 
+                        <Button
+                            onClick={nextQuestion}
                             className="mt-6 w-full h-12 rounded-xl font-bold gap-2"
                         >
                             {currentQuestionIndex === quizData.length - 1 ? "See Results" : "Next Question"}

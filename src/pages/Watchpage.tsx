@@ -641,7 +641,7 @@ export default function Watchpage() {
                 )}
                 
                 {isGeneratingFinalQuiz && (
-                    <div className="absolute inset-0 z-[100] bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
+                    <div className="absolute inset-0 z-100 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
                          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6" />
                          <h3 className="text-xl font-bold">Generating Final Assessment...</h3>
                          <p className="text-muted-foreground text-sm">Gemini is analyzing your session to create a custom quiz.</p>
