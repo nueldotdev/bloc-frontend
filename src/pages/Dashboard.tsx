@@ -301,7 +301,7 @@ export default function Dashboard() {
                         <div 
                             key={session.id}
                             onClick={() => jumpToSession(session)}
-                            className="group relative border border-border/60 rounded-[2rem] p-7 transition-all cursor-pointer hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/20 flex flex-col min-h-[220px] overflow-hidden"
+                            className="group relative border border-border/60 rounded-[2rem] p-7 transition-all cursor-pointer hover:shadow-md hover:shadow-primary/5 hover:border-primary/20 flex flex-col min-h-[220px] overflow-hidden"
                         >
                             {(session as any).cover_url ? (
                                 <div 
@@ -311,7 +311,7 @@ export default function Dashboard() {
                             ) : (
                                 <div className="absolute inset-0 bg-card" />
                             )}
-                            <div className={`absolute inset-0 transition-colors ${(session as any).cover_url ? 'bg-black/70 group-hover:bg-black/60' : ''}`} />
+                            <div className={`absolute inset-0 transition-colors ${(session as any).cover_url ? 'bg-background/80 group-hover:bg-background/70 backdrop-blur-sm' : ''}`} />
 
                             <div className="relative z-10 flex flex-col h-full">
                                 <div className="flex justify-between items-start mb-8">
@@ -356,10 +356,10 @@ export default function Dashboard() {
                             </div>
                             
                             <div className="flex-1">
-                                    <h3 className={`font-bold text-xl mb-2 group-hover:text-primary transition-colors truncate pr-2 ${(session as any).cover_url ? 'text-white' : 'text-foreground'}`}>
+                                    <h3 className="font-bold text-xl mb-2 group-hover:text-primary transition-colors truncate pr-2 text-foreground">
                                         {session.name}
                                     </h3>
-                                    <p className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 opacity-80 ${(session as any).cover_url ? 'text-white/80' : 'text-muted-foreground'}`}>
+                                    <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 opacity-80 text-muted-foreground">
                                         <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
                                         {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </p>
