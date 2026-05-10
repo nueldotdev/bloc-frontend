@@ -16,12 +16,13 @@ export interface PlayerHandle {
 export const Player = forwardRef<PlayerHandle, { 
     videoId: string, 
     playlistId?: string,
+    startSeconds?: number,
     onProgress: (time: number) => void,
     onDuration?: (duration: number) => void,
     onEnded?: () => void,
     onPlaylistLoaded?: (ids: string[]) => void,
     onVideoChange?: (videoId: string) => void
-}>(({ videoId, playlistId, onProgress, onDuration, onEnded, onPlaylistLoaded, onVideoChange }, ref) => {
+}>(({ videoId, playlistId, startSeconds, onProgress, onDuration, onEnded, onPlaylistLoaded, onVideoChange }, ref) => {
     const [isReady, setIsReady] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const playerRef = useRef<any>(null)
@@ -91,6 +92,7 @@ export const Player = forwardRef<PlayerHandle, {
                     modestbranding: 1,
                     rel: 0,
                     origin: window.location.origin,
+                    start: startSeconds || 0,
                     // Note: If playlistId is provided, YouTube might try to auto-advance.
                     // We handle this by pausing explicitly in Watchpage.
                 },

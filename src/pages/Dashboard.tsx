@@ -18,6 +18,7 @@ import {
 import { type Session } from "@/components/sidebar/InteractiveSidebar"
 import DashboardSidebar from "@/components/app/DashboardSidebar"
 import SessionModal from "@/components/app/SessionModal"
+import ContinueWatching, { type ContinueSessionData } from "@/components/app/ContinueWatching"
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -27,6 +28,18 @@ export default function Dashboard() {
   const [editingSession, setEditingSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [sessions, setSessions] = useState<Session[]>([])
+  const [dismissedContinue, setDismissedContinue] = useState(false)
+
+  // Find the most recently watched session
+  const sessionToContinue = !dismissedContinue 
+    ? [...sessions]
+        .filter((s: any) => s.last_video_id)
+        .sort((a: any, b: any) => {
+            const timeA = a.last_watched_at ? new Date(a.last_watched_at).getTime() : 0;
+            const timeB = b.last_watched_at ? new Date(b.last_watched_at).getTime() : 0;
+            return timeB - timeA;
+        })[0] as unknown as ContinueSessionData
+    : null;
 
   useEffect(() => {
     if (!user) {
@@ -147,6 +160,14 @@ export default function Dashboard() {
     } else {
         navigate("/watch")
     }
+  }
+
+  const handleContinueSession = (session: ContinueSessionData) => {
+    localStorage.setItem("bloc_active_session_id", session.id)
+    const params = new URLSearchParams()
+    if (session.last_video_id) params.set("v", session.last_video_id)
+    if (session.last_timestamp) params.set("t", session.last_timestamp.toString())
+    navigate(`/watch?${params.toString()}`)
   }
 
   const getGreeting = () => {
@@ -362,6 +383,14 @@ export default function Dashboard() {
           onSubmit={editingSession ? handleUpdateSession : handleCreateSession}
           initialData={editingSession}
           title={editingSession ? "Edit Session" : "Create New Session"}
+        />
+      )}
+
+      {sessionToContinue && (
+        <ContinueWatching 
+          session={sessionToContinue}
+          onContinue={handleContinueSession}
+          onCancel={() => setDismissedContinue(true)}
         />
       )}
     </div>

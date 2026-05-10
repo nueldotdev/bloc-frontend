@@ -32,6 +32,7 @@ export default function Watchpage() {
     const navigate = useNavigate()
     const videoId = searchParams.get("v")
     const playlistId = searchParams.get("list")
+    const startTimestamp = parseInt(searchParams.get("t") || "0")
     const playerRef = useRef<PlayerHandle>(null)
     // const isInitialLoad = useRef(true)
     const { user, profile } = useAuth()
@@ -182,6 +183,41 @@ export default function Watchpage() {
         const timeout = setTimeout(sync, 1000)
         return () => clearTimeout(timeout)
     }, [queue, user, currentSessionId])
+
+    const currentTimeRef = useRef(0)
+    const currentVideoIdRef = useRef("")
+    useEffect(() => {
+        currentTimeRef.current = currentTime
+        currentVideoIdRef.current = videoId || ""
+    }, [currentTime, videoId])
+
+    const lastSyncedProgressRef = useRef<{videoId: string, time: number}>({ videoId: "", time: 0 })
+
+    useEffect(() => {
+        const syncProgress = async (isImmediate = false) => {
+            if (user && currentSessionId && videoId) {
+                const time = currentVideoIdRef.current === videoId ? currentTimeRef.current : 0
+                const last = lastSyncedProgressRef.current
+                if (last.videoId !== videoId || Math.abs(time - last.time) >= 10 || isImmediate) {
+                    try {
+                        await api.put(`sessions/${currentSessionId}`, { 
+                            lastVideoId: videoId,
+                            lastTimestamp: Math.floor(time)
+                        })
+                        lastSyncedProgressRef.current = { videoId, time }
+                    } catch (error) {
+                        console.error("Failed to sync progress to server", error)
+                    }
+                }
+            }
+        }
+        
+        // Sync immediately when videoId or session changes
+        syncProgress(true)
+        
+        const interval = setInterval(() => syncProgress(false), 10000)
+        return () => clearInterval(interval)
+    }, [user, currentSessionId, videoId])
 
     // Load session details (including queue)
     useEffect(() => {
@@ -674,6 +710,7 @@ export default function Watchpage() {
                         ref={playerRef}
                         videoId={videoId || ""} 
                         playlistId={playlistId || ""}
+                        startSeconds={startTimestamp}
                         onProgress={handleProgress}
                         onDuration={setDuration}
                         onEnded={handleVideoEnded}
