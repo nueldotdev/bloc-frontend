@@ -159,8 +159,12 @@ export default function PathDetails() {
                         </div>
                         <h1 className="text-4xl md:text-6xl font-black tracking-tight">{path.name}</h1>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/10">
-                                {path.profiles?.full_name?.[0] || "?"}
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/10 overflow-hidden shrink-0">
+                                {path.profiles?.avatar_url ? (
+                                    <img src={path.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    path.profiles?.full_name?.[0] || "?"
+                                )}
                             </div>
                             <div>
                                 <p className="text-sm font-bold">Curated by {path.profiles?.full_name || "Anonymous Student"}</p>

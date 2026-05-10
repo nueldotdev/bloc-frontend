@@ -17,16 +17,16 @@ import {
 } from "lucide-react"
 import { type Session } from "@/components/sidebar/InteractiveSidebar"
 import DashboardSidebar from "@/components/app/DashboardSidebar"
+import SessionModal from "@/components/app/SessionModal"
 
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [loading, setLoading] = useState(true)
   const [url, setUrl] = useState("")
-  const [newSessionName, setNewSessionName] = useState("")
-  const [initialUrl, setInitialUrl] = useState("")
-  const [isCreating, setIsCreating] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingSession, setEditingSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [sessions, setSessions] = useState<Session[]>([])
 
   useEffect(() => {
     if (!user) {
@@ -82,23 +82,18 @@ export default function Dashboard() {
     return { videoId, playlistId }
   }
 
-  const handleCreateSession = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newSessionName.trim()) return
-    
-    setIsCreating(true)
+  const handleCreateSession = async (data: any) => {
     try {
       const res = await api.post<{ data: Session }>("sessions", { 
-        name: newSessionName.trim(),
-        initialUrl: initialUrl.trim()
+        name: data.name,
+        initialUrl: data.initialUrl,
+        coverUrl: data.coverUrl,
+        description: data.description
       })
       setSessions(prev => [res.data, ...prev])
-      setNewSessionName("")
-      setInitialUrl("")
     } catch (error) {
       console.error("Failed to create session", error)
-    } finally {
-      setIsCreating(false)
+      throw error
     }
   }
 
@@ -114,23 +109,30 @@ export default function Dashboard() {
     }
   }
 
-  const handleUpdateSession = async (id: string, currentSession: any, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newName = prompt("Enter new session name:", currentSession.name)
-    if (newName === null) return
-
-    const newDescription = prompt("Enter session description:", currentSession.description || "")
-    if (newDescription === null) return
-
+  const handleUpdateSession = async (data: any) => {
+    if (!editingSession) return
     try {
-      const res = await api.put<{ data: Session }>(`sessions/${id}`, { 
-          name: newName || currentSession.name,
-          description: newDescription
+      const res = await api.put<{ data: Session }>(`sessions/${editingSession.id}`, { 
+          name: data.name,
+          description: data.description,
+          coverUrl: data.coverUrl
       })
-      setSessions(prev => prev.map(s => s.id === id ? res.data : s))
+      setSessions(prev => prev.map(s => s.id === editingSession.id ? res.data : s))
     } catch (error) {
       console.error("Failed to update session", error)
+      throw error
     }
+  }
+
+  const openEditModal = (session: Session, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingSession(session)
+    setIsModalOpen(true)
+  }
+
+  const openCreateModal = () => {
+    setEditingSession(null)
+    setIsModalOpen(true)
   }
 
   const jumpToSession = (session: any) => {
@@ -199,7 +201,7 @@ export default function Dashboard() {
   }
 
   const displayName = user?.user_metadata?.full_name?.split(' ')[0] || user?.user_metadata?.name || "Learner"
-  const [subGreeting] = useState(getSubGreeting())
+  const [subGreeting] = useState(() => getSubGreeting())
 
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-primary/10 text-foreground">
@@ -229,34 +231,20 @@ export default function Dashboard() {
 
         {/* Create Session Area */}
         <section className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-            <div className="bg-primary/5 border border-primary/10 rounded-[2.5rem] p-8 flex flex-col xl:flex-row items-center justify-between gap-8 shadow-sm">
+            <div className="bg-primary/5 border border-primary/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm">
                 <div className="max-w-md">
                     <h2 className="text-2xl font-bold mb-2 text-foreground flex items-center gap-3">
                          <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20">
                             <Plus className="w-6 h-6" />
                          </div>
-                         Start a new session
+                         Your Learning Space
                     </h2>
-                    <p className="text-sm text-muted-foreground font-medium opacity-80">Organize your notes, AI chats, and topics by subject or project.</p>
+                    <p className="text-sm text-muted-foreground font-medium opacity-80">Organize your study resources, AI notes, and progress in dedicated sessions.</p>
                 </div>
-                <form onSubmit={handleCreateSession} className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
-                    <Input 
-                        placeholder="Session name (e.g. CS101 Prep)"
-                        className="h-12 md:w-56 rounded-xl bg-background border-2 shadow-sm focus:border-primary/50"
-                        value={newSessionName}
-                        onChange={(e) => setNewSessionName(e.target.value)}
-                    />
-                    <Input 
-                        placeholder="YouTube URL (Optional)"
-                        className="h-12 md:w-80 rounded-xl bg-background border-2 shadow-sm focus:border-primary/50"
-                        value={initialUrl}
-                        onChange={(e) => setInitialUrl(e.target.value)}
-                    />
-                    <Button type="submit" disabled={isCreating} className="h-12 px-8 rounded-xl font-bold gap-2 whitespace-nowrap shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95">
-                        {isCreating ? <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Plus className="w-5 h-5" />}
-                        Create
-                    </Button>
-                </form>
+                <Button onClick={openCreateModal} size="lg" className="h-14 px-10 rounded-2xl font-bold gap-3 shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95 text-lg">
+                    <Plus className="w-6 h-6" />
+                    New Session
+                </Button>
             </div>
         </section>
 
@@ -292,9 +280,20 @@ export default function Dashboard() {
                         <div 
                             key={session.id}
                             onClick={() => jumpToSession(session)}
-                            className="group relative bg-card hover:bg-muted/20 border border-border/60 rounded-[2rem] p-7 transition-all cursor-pointer hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/20 flex flex-col min-h-[220px]"
+                            className="group relative border border-border/60 rounded-[2rem] p-7 transition-all cursor-pointer hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/20 flex flex-col min-h-[220px] overflow-hidden"
                         >
-                            <div className="flex justify-between items-start mb-8">
+                            {(session as any).cover_url ? (
+                                <div 
+                                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" 
+                                    style={{ backgroundImage: `url(${(session as any).cover_url})` }}
+                                />
+                            ) : (
+                                <div className="absolute inset-0 bg-card" />
+                            )}
+                            <div className={`absolute inset-0 transition-colors ${(session as any).cover_url ? 'bg-black/70 group-hover:bg-black/60' : ''}`} />
+
+                            <div className="relative z-10 flex flex-col h-full">
+                                <div className="flex justify-between items-start mb-8">
                                 <div className="p-3.5 bg-primary/10 rounded-2xl text-primary group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm shadow-primary/5 border border-primary/10">
                                     <Clock className="w-6 h-6" />
                                 </div>
@@ -320,7 +319,7 @@ export default function Dashboard() {
                                         variant="ghost" 
                                         size="icon" 
                                         className="h-9 w-9 rounded-xl text-muted-foreground hover:text-primary hover:bg-background shadow-sm border border-border/40 transition-all"
-                                        onClick={(e) => handleUpdateSession(session.id, session, e)}
+                                        onClick={(e) => openEditModal(session, e)}
                                     >
                                         <Edit3 className="w-4 h-4" />
                                     </Button>
@@ -336,17 +335,18 @@ export default function Dashboard() {
                             </div>
                             
                             <div className="flex-1">
-                                <h3 className="font-bold text-xl mb-2 group-hover:text-primary transition-colors truncate pr-2 text-foreground">
-                                    {session.name}
-                                </h3>
-                                <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1.5 opacity-80">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                    {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </p>
-                            </div>
+                                    <h3 className={`font-bold text-xl mb-2 group-hover:text-primary transition-colors truncate pr-2 ${(session as any).cover_url ? 'text-white' : 'text-foreground'}`}>
+                                        {session.name}
+                                    </h3>
+                                    <p className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 opacity-80 ${(session as any).cover_url ? 'text-white/80' : 'text-muted-foreground'}`}>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                                        {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </p>
+                                </div>
 
-                            <div className="mt-6 flex items-center text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-3 group-hover:translate-x-0">
-                                OPEN WORKSPACE <ChevronRight className="w-3.5 h-3.5 ml-1.5" />
+                                <div className="mt-6 flex items-center text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-3 group-hover:translate-x-0">
+                                    OPEN WORKSPACE <ChevronRight className="w-3.5 h-3.5 ml-1.5" />
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -354,6 +354,16 @@ export default function Dashboard() {
             )}
         </section>
       </main>
+
+      {isModalOpen && (
+        <SessionModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={editingSession ? handleUpdateSession : handleCreateSession}
+          initialData={editingSession}
+          title={editingSession ? "Edit Session" : "Create New Session"}
+        />
+      )}
     </div>
   )
 }

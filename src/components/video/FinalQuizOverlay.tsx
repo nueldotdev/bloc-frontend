@@ -12,10 +12,12 @@ interface Question {
 
 export default function FinalQuizOverlay({
     quizData,
-    onClose
+    onClose,
+    onReplay
 }: {
     quizData: Question[],
-    onClose: () => void
+    onClose: () => void,
+    onReplay: () => void
 }) {
     const [currentStep, setCurrentStep] = useState<"intro" | "quiz" | "result">("intro")
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -91,9 +93,14 @@ export default function FinalQuizOverlay({
                         </p>
                     </div>
 
-                    <Button onClick={onClose} className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 transition-all active:scale-95">
-                        Finish Session
-                    </Button>
+                    <div className="flex flex-col gap-3">
+                        <Button onClick={onClose} className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 transition-all active:scale-95">
+                            Finish Session
+                        </Button>
+                        <Button onClick={onReplay} variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold border-2 transition-all active:scale-95">
+                            Review Video
+                        </Button>
+                    </div>
                 </div>
             </div>
         )

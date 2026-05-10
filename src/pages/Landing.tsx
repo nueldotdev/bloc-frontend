@@ -17,6 +17,7 @@ import {
   // Twitter,
   LogOut,
   User as UserIcon,
+  Compass,
 } from "lucide-react"
 import { FcGoogle } from "react-icons/fc" // Import Google icon
 import { ModeToggle } from "@/components/mode-toggle"
@@ -136,12 +137,12 @@ const Landing = () => {
                     </div>
 
 					<h1 className="text-5xl md:text-7xl font-bold tracking-tight max-w-4xl leading-[1.1] animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
-						Master your learning, <br/>
-						<span className="text-primary italic">distraction-free</span>
+						Stop watching, <br/>
+						<span className="text-primary italic">start mastering.</span>
 					</h1>
 					
                     <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                        Bloc transforms YouTube lectures into a focused study environment with AI assistance, smart check-ins, and integrated note-taking.
+                        Bloc is an AI-powered educational environment that turns passive YouTube viewing into an active learning session with smart check-ins and custom assessments.
                     </p>
 
 					<form onSubmit={handleSubmit} className="mt-10 w-full max-w-xl group animate-in fade-in slide-in-from-bottom-10 duration-700 delay-300">
@@ -180,22 +181,22 @@ const Landing = () => {
                             {
                                 icon: <Layout className="w-6 h-6" />,
                                 title: "Zero Distractions",
-                                description: "No recommendations, comments, or ads. Just you and the content you're trying to learn."
-                            },
-                            {
-                                icon: <MessageSquare className="w-6 h-6" />,
-                                title: "AI Learning Buddy",
-                                description: "Ask questions about the video content and get instant, context-aware answers from Gemini."
+                                description: "A clean, ad-free environment where recommended videos and comments never break your flow."
                             },
                             {
                                 icon: <Zap className="w-6 h-6" />,
-                                title: "Focus Guard",
-                                description: "Smart check-ins ensure you stay engaged. If you drift off, Bloc brings you back."
+                                title: "Sanity Checks",
+                                description: "Dynamic check-ins ensure you're actually learning. If you drift off, Bloc brings you back into the zone."
+                            },
+                            {
+                                icon: <MessageSquare className="w-6 h-6" />,
+                                title: "AI mastery Quiz",
+                                description: "Gemini analyzes the entire transcript to generate a custom 5-question final assessment just for you."
                             },
                             {
                                 icon: <Notebook className="w-6 h-6" />,
-                                title: "Synced Notes",
-                                description: "Take notes directly next to the video. All notes are timestamped and easy to review."
+                                title: "Synced Notebook",
+                                description: "Take notes directly next to the video. Every thought is timestamped for instant replay later."
                             }
                         ].map((feature, i) => (
                             <div key={i} className="p-8 rounded-3xl bg-background border border-border/50 hover:border-primary/50 transition-all hover:shadow-xl hover:shadow-primary/5 group">
@@ -210,30 +211,97 @@ const Landing = () => {
                         ))}
                     </div>
 				</div>
-			</section>
+				</section>
 
-            {/* How it Works */}
+				{/* Explore Section */}
+				<section id="explore" className="py-24 bg-background">
+				<div className="container mx-auto px-6">
+				    <div className="flex flex-col lg:flex-row-reverse items-center gap-16">
+				        <div className="lg:w-1/2 text-left">
+				            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold text-primary mb-6 uppercase tracking-widest">
+				                <Compass className="w-4 h-4" />
+				                Community Learning
+				            </div>
+				            <h2 className="text-3xl md:text-5xl font-bold mb-6">Explore curated paths from the community</h2>
+				            <p className="text-lg text-muted-foreground mb-8">
+				                Don't know where to start? Browse learning paths curated by students and experts worldwide. Join existing communities, follow their queues, and master complex subjects together.
+				            </p>
+				            <div className="grid grid-cols-2 gap-6 mb-8">
+				                <div className="p-6 rounded-2xl bg-muted/30 border border-border/50">
+				                    <h4 className="font-bold text-xl mb-1 text-primary">Discover</h4>
+				                    <p className="text-sm text-muted-foreground">Find structured curricula for any topic.</p>
+				                </div>
+				                <div className="p-6 rounded-2xl bg-muted/30 border border-border/50">
+				                    <h4 className="font-bold text-xl mb-1 text-primary">Collaborate</h4>
+				                    <p className="text-sm text-muted-foreground">Share your own paths with the world.</p>
+				                </div>
+				            </div>
+				            <Button 
+				                size="lg" 
+				                className="rounded-xl font-bold px-8 h-14"
+				                onClick={signInWithGoogle}
+				            >
+				                Start Exploring
+				                <ArrowRight className="ml-2 w-4 h-4" />
+				            </Button>
+				            </div>
+				            <div className="lg:w-1/2 relative">
+				                <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-1000">
+				                    <div className="space-y-4 pt-12">
+				                        <div className="aspect-4/5 bg-card border border-border rounded-[2rem] p-6 shadow-xl flex flex-col justify-end">
+				                            <div className="w-10 h-10 bg-primary/10 rounded-xl mb-4" />
+				                            <div className="h-4 w-3/4 bg-muted rounded mb-2" />
+				                            <div className="h-4 w-1/2 bg-muted rounded" />
+				                        </div>
+				                        <div className="aspect-square bg-card border border-border rounded-[2rem] p-6 shadow-lg flex flex-col justify-center">
+				                             <div className="w-8 h-8 bg-muted/40 rounded-full mb-4" />
+				                             <div className="h-3 w-full bg-muted/40 rounded mb-2" />
+				                             <div className="h-3 w-2/3 bg-muted/40 rounded" />
+				                        </div>
+				                    </div>
+				                    <div className="space-y-4">
+				                        <div className="aspect-square bg-card border border-border rounded-[2rem] p-6 shadow-2xl flex flex-col justify-center">
+				                            <div className="w-10 h-10 bg-primary/10 rounded-xl mb-4" />
+				                            <div className="h-3 w-3/4 bg-muted rounded mb-2" />
+				                            <div className="h-3 w-1/2 bg-muted rounded" />
+				                        </div>
+				                        <div className="aspect-4/5 bg-card border border-border rounded-[2rem] p-6 shadow-xl flex flex-col">
+				                            <div className="h-4 w-full bg-muted rounded mb-2" />
+				                            <div className="h-4 w-2/3 bg-muted rounded mb-auto" />
+				                            <div className="h-10 w-full bg-primary/5 rounded-xl border border-primary/10" />
+				                        </div>
+				                    </div>
+				                </div>
+				                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/20 rounded-full blur-3xl -z-10" />
+				            </div>
+
+				    </div>
+				</div>
+				</section>
+
+				{/* How it Works */}
+
             <section id="how-it-works" className="py-24">
                 <div className="container mx-auto px-6">
                     <div className="flex flex-col lg:flex-row items-center gap-16">
                         <div className="lg:w-1/2">
-                            <h2 className="text-3xl md:text-5xl font-bold mb-8">How it works</h2>
+                            <h2 className="text-3xl md:text-5xl font-bold mb-8">Master any lecture</h2>
                             <div className="space-y-8">
                                 {[
                                     {
                                         step: "01",
-                                        title: "Pick your lecture",
-                                        description: "Find a YouTube video you want to learn from and paste the URL into Bloc."
+                                        title: "Sync your Content",
+                                        description: "Paste any YouTube link. Bloc instantly fetches the transcript and builds your workspace."
                                     },
                                     {
                                         step: "02",
-                                        title: "Enter the zone",
-                                        description: "Bloc strips away all distractions and prepares a clean workspace for you."
+                                        title: "Active Learning",
+                                        description: "Engage with the material through real-time notes and AI chat. Stay sharp with random sanity checks."
                                     },
                                     {
                                         step: "03",
-                                        title: "Learn & Interrogate",
-                                        description: "Watch, take notes, and chat with AI to clarify complex topics as they appear."
+                                        title: "Prove your Mastery",
+                                        description: "Complete an AI-generated final quiz. If you don't pass, review and replay until you do."
                                     }
                                 ].map((item, i) => (
                                     <div key={i} className="flex gap-6">

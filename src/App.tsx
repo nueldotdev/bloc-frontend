@@ -3,8 +3,10 @@ import './App.css'
 import Landing from '@/pages/Landing'
 import Watchpage from '@/pages/Watchpage'
 import Dashboard from '@/pages/Dashboard'
+import Settings from '@/pages/Settings'
 import Library from '@/pages/Library'
 import Explore from '@/pages/Explore'
+import Notes from '@/pages/Notes'
 import PathDetails from '@/pages/PathDetails'
 import { AuthProvider } from '@/components/auth-provider'
 
@@ -15,7 +17,9 @@ function App() {
       <Routes>
         <Route path='/' element={<Landing />} />
         <Route path='/dashboard' element={<Dashboard />} />
+        <Route path='/settings' element={<Settings />} />
         <Route path='/explore' element={<Explore />} />
+        <Route path='/notes' element={<Notes />} />
         <Route path='/explore/:id' element={<PathDetails />} />
         <Route path='/library' element={<Library />} />
         <Route path='/watch' element={<Watchpage />} />

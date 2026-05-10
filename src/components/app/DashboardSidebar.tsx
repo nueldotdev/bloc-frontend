@@ -3,16 +3,18 @@ import Logo from "@/components/app/Logo"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth-provider"
 import { 
-  Video, 
+  // Video, 
   BookOpen,
   LayoutDashboard,
   LogOut,
-  Compass
+  Compass,
+  Settings,
+  Notebook
 } from "lucide-react"
 import { ModeToggle } from "../mode-toggle"
 
 export default function DashboardSidebar() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, profile } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -28,15 +30,25 @@ export default function DashboardSidebar() {
         icon: Compass 
     },
     { 
+        name: 'Notes', 
+        path: '/notes', 
+        icon: Notebook 
+    },
+    { 
         name: 'Library', 
         path: '/library', 
         icon: BookOpen 
     },
     { 
-        name: 'Watch Mode', 
-        path: '/watch', 
-        icon: Video 
+        name: 'Settings', 
+        path: '/settings', 
+        icon: Settings 
     },
+    // { 
+    //     name: 'Watch Mode', 
+    //     path: '/watch', 
+    //     icon: Video 
+    // },
   ]
 
   const isActive = (path: string) => location.pathname === path
@@ -68,8 +80,12 @@ export default function DashboardSidebar() {
 
         <div className="pt-6 border-t border-border mt-auto">
             <div className="flex items-center gap-3 px-2 mb-4 bg-muted/30 p-3 rounded-2xl border border-border/50">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs border border-primary/20 shadow-inner">
-                    {user?.email?.[0].toUpperCase()}
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs border border-primary/20 shadow-inner shrink-0 overflow-hidden">
+                    {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                        profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "?"
+                    )}
                 </div>
                 <div className="flex-1 truncate">
                     <p className="text-[11px] font-bold truncate text-foreground">{user?.email}</p>

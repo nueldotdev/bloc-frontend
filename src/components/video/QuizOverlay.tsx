@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
 interface Question {
@@ -26,14 +26,9 @@ const QUESTIONS: Question[] = [
 ]
 
 export default function QuizOverlay({ onCorrect }: { onCorrect: () => void }) {
-    const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
+    const [currentQuestion] = useState<Question>(() => QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)])
     const [selectedOption, setSelectedOption] = useState<number | null>(null)
     const [isWrong, setIsWrong] = useState(false)
-
-    useEffect(() => {
-        const randomQ = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)]
-        setCurrentQuestion(randomQ)
-    }, [])
 
     const handleAnswer = () => {
         if (selectedOption === currentQuestion?.correctIndex) {

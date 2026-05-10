@@ -27,10 +27,32 @@ export const Player = forwardRef<PlayerHandle, {
     const playerRef = useRef<any>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const lastVideoIdRef = useRef<string>(videoId)
+    const hasTriggeredEndRef = useRef<boolean>(false)
+
+    // Use refs for callbacks to avoid stale closures in event listeners
+    const onProgressRef = useRef(onProgress)
+    const onDurationRef = useRef(onDuration)
+    const onEndedRef = useRef(onEnded)
+    const onPlaylistLoadedRef = useRef(onPlaylistLoaded)
+    const onVideoChangeRef = useRef(onVideoChange)
+
+    useEffect(() => {
+        onProgressRef.current = onProgress
+        onDurationRef.current = onDuration
+        onEndedRef.current = onEnded
+        onPlaylistLoadedRef.current = onPlaylistLoaded
+        onVideoChangeRef.current = onVideoChange
+    }, [onProgress, onDuration, onEnded, onPlaylistLoaded, onVideoChange])
+
+    // Reset end trigger when videoId changes
+    useEffect(() => {
+        hasTriggeredEndRef.current = false
+    }, [videoId])
 
     useImperativeHandle(ref, () => ({
         seekTo: (seconds: number) => {
             if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+                hasTriggeredEndRef.current = false // Allow re-triggering if seeking back
                 playerRef.current.seekTo(seconds, true)
                 playerRef.current.playVideo()
             }
@@ -69,6 +91,8 @@ export const Player = forwardRef<PlayerHandle, {
                     modestbranding: 1,
                     rel: 0,
                     origin: window.location.origin,
+                    // Note: If playlistId is provided, YouTube might try to auto-advance.
+                    // We handle this by pausing explicitly in Watchpage.
                 },
                 events: {
                     onReady: () => {
@@ -78,32 +102,46 @@ export const Player = forwardRef<PlayerHandle, {
                             // Check for playlist content
                             if (typeof playerRef.current.getPlaylist === 'function') {
                                 const playlistIds = playerRef.current.getPlaylist()
-                                if (playlistIds && playlistIds.length > 0 && onPlaylistLoaded) {
+                                if (playlistIds && playlistIds.length > 0 && onPlaylistLoadedRef.current) {
                                     console.log("[Player] Playlist detected, IDs:", playlistIds)
-                                    onPlaylistLoaded(playlistIds)
+                                    onPlaylistLoadedRef.current(playlistIds)
                                 }
                             }
 
                             const d = playerRef.current.getDuration()
-                            if (onDuration) onDuration(d)
+                            if (onDurationRef.current) onDurationRef.current(d)
                             startPolling()
                         }
                     },
                     onStateChange: (event: any) => {
+                        console.log("[Player] YouTube State Change:", event.data)
                         // event.data: 
                         // YT.PlayerState.ENDED = 0
                         // YT.PlayerState.PLAYING = 1
                         
                         if (event.data === 1) { // PLAYING
                             const currentId = playerRef.current.getVideoData()?.video_id
+                            console.log("[Player] Video Playing. ID:", currentId)
                             if (currentId && currentId !== lastVideoIdRef.current) {
+                                console.log("[Player] Video ID changed from", lastVideoIdRef.current, "to", currentId)
                                 lastVideoIdRef.current = currentId
-                                if (onVideoChange) onVideoChange(currentId)
+                                hasTriggeredEndRef.current = false // Reset for new video
+                                if (onVideoChangeRef.current) onVideoChangeRef.current(currentId)
                             }
                         }
 
-                        if (event.data === 0 && onEnded) {
-                            onEnded()
+                        if (event.data === 0) {
+                            console.log("[Player] Video Ended detected (State 0)")
+                            try {
+                                playerRef.current?.pauseVideo() // Force immediate pause
+                            } catch (e) {}
+                            
+                            if (!hasTriggeredEndRef.current) {
+                                hasTriggeredEndRef.current = true
+                                if (onEndedRef.current) {
+                                    onEndedRef.current()
+                                }
+                            }
                         }
                     },
                     onError: (e: any) => {
@@ -125,7 +163,24 @@ export const Player = forwardRef<PlayerHandle, {
             pollInterval = window.setInterval(() => {
                 if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
                     const currentTime = playerRef.current.getCurrentTime()
-                    onProgress(currentTime)
+                    const duration = playerRef.current.getDuration()
+                    onProgressRef.current(currentTime)
+
+                    // Backup end detection: trigger if we are at the very end and not playing/buffering
+                    // Or if duration is reached.
+                    if (duration > 0 && duration - currentTime < 0.5 && !hasTriggeredEndRef.current) {
+                        const state = playerRef.current.getPlayerState?.()
+                        // If state is ended (0) or if we are just stuck at the end
+                        if (state === 0 || (duration - currentTime < 0.15)) {
+                            console.log("[Player] End detected via polling", { currentTime, duration, state })
+                            try {
+                                playerRef.current?.pauseVideo() // Force immediate pause
+                            } catch (e) {}
+                            
+                            hasTriggeredEndRef.current = true
+                            if (onEndedRef.current) onEndedRef.current()
+                        }
+                    }
                 }
             }, 500)
         }

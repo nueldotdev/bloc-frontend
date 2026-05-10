@@ -34,7 +34,7 @@ export default function Watchpage() {
     const playlistId = searchParams.get("list")
     const playerRef = useRef<PlayerHandle>(null)
     // const isInitialLoad = useRef(true)
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     
     // UI State
     const [activePanel, setActivePanel] = useState<"chat" | "notes" | "queue" | "topics" | "sessions" | null>(null)
@@ -125,7 +125,7 @@ export default function Watchpage() {
             }
         }
         loadSessions()
-    }, [user])
+    }, [user, currentSessionId])
 
     // Load data from server if logged in
     useEffect(() => {
@@ -225,23 +225,30 @@ export default function Watchpage() {
             }
         }
         generateTopics()
-    }, [user, videoId, videoTranscript])
+    }, [user, videoId, videoTranscript, videoDataMap, isGeneratingTopics])
 
     // Dynamic Sanity check timer (Auth only)
     useEffect(() => {
         if (!user || !videoId || duration <= 0) return;
+        if (profile?.sanity_checks_enabled === false) return;
+
         let intervalSeconds = 8 * 60;
         if (duration < 300) intervalSeconds = 90;
         else if (duration < 1200) intervalSeconds = 240;
 
         const mins = (intervalSeconds / 60).toFixed(1)
-        setNotification(`Sanity check scheduled every ${mins} minutes.`)
-        const timer = setTimeout(() => setNotification(null), 5000)
+        const timer = setTimeout(() => {
+            setNotification(`Sanity check scheduled every ${mins} minutes.`)
+            setTimeout(() => setNotification(null), 5000)
+        }, 100)
 
         const interval = setInterval(() => {
-            if (videoId && !isQuizActive) {
-                setIsQuizActive(true)
-                playerRef.current?.pauseVideo()
+            if (videoId) {
+                setIsQuizActive(prev => {
+                    if (prev) return prev
+                    playerRef.current?.pauseVideo()
+                    return true
+                })
             }
         }, intervalSeconds * 1000) 
 
@@ -249,7 +256,7 @@ export default function Watchpage() {
             clearInterval(interval)
             clearTimeout(timer)
         }
-    }, [videoId, isQuizActive, duration, user])
+    }, [videoId, duration, user, profile])
 
     const fetchTitle = async (id: string) => {
         try {
@@ -293,7 +300,7 @@ export default function Watchpage() {
             }
         }
         init()
-    }, [videoId, user])
+    }, [videoId, user, queue, videoDataMap])
 
     const handlePlaylistLoaded = useCallback(async (ids: string[]) => {
         const newIds = ids.filter(id => !queue.find(item => item.id === id))
@@ -336,24 +343,49 @@ export default function Watchpage() {
         }
     }, [videoId, queue, handlePlayFromQueue])
 
+    const handleReplay = useCallback(() => {
+        setIsFinalQuizActive(false)
+        playerRef.current?.seekTo(0)
+        playerRef.current?.playVideo()
+    }, [])
+
     const handleVideoEnded = useCallback(async () => {
-        if (!user || !videoId || !videoTranscript) {
+        playerRef.current?.pauseVideo() // STOP IMMEDIATELY
+        console.log("[Watchpage] handleVideoEnded triggered - Player paused")
+        
+        console.log("[Watchpage] Current videoId:", videoId)
+        console.log("[Watchpage] User logged in:", !!user)
+        console.log("[Watchpage] Transcript length:", videoTranscript?.length || 0)
+
+        if (!user || !videoId || !videoTranscript || videoTranscript.length < 100) {
+            console.log("[Watchpage] Missing requirements for final quiz, skipping...")
             handleNextVideo()
             return
         }
 
         setIsGeneratingFinalQuiz(true)
+        playerRef.current?.pauseVideo() // Ensure video is paused during generation
+        
         try {
             const currentVideo = queue.find(q => q.id === videoId)
-            const res = await api.post<{ data: any[] }>("gemini/final-quiz", {
+            const payload = {
                 videoId,
                 videoTranscript,
                 videoTitle: currentVideo?.title || "Unknown Video"
-            })
+            }
+            
+            console.log("[Watchpage] Requesting final quiz from backend...")
+            
+            const res = await api.post<{ data: any[] }>("gemini/final-quiz", payload)
+            
+            console.log("[Watchpage] Final quiz generated successfully:", res.data)
             setFinalQuizData(res.data)
             setIsFinalQuizActive(true)
-        } catch (error) {
-            console.error("Failed to generate final quiz", error)
+            playerRef.current?.pauseVideo() // Extra safety to keep it paused
+        } catch (error: any) {
+            console.error("[Watchpage] Final quiz generation failed:", error)
+            setNotification(`Failed to generate quiz: ${error.message || "Unknown error"}`)
+            setTimeout(() => setNotification(null), 5000)
             handleNextVideo()
         } finally {
             setIsGeneratingFinalQuiz(false)
@@ -548,9 +580,13 @@ export default function Watchpage() {
         playerRef.current?.pauseVideo();
     }
 
-    const handleCreateSession = async (name: string) => {
+    const handleCreateSession = async (name: string, description?: string, coverUrl?: string) => {
         try {
-            const res = await api.post<{ data: Session }>("sessions", { name })
+            const res = await api.post<{ data: Session }>("sessions", { 
+                name,
+                description,
+                coverUrl
+            })
             setSessions(prev => [res.data, ...prev])
             setCurrentSessionId(res.data.id)
             localStorage.setItem("bloc_active_session_id", res.data.id)
@@ -564,9 +600,13 @@ export default function Watchpage() {
         localStorage.setItem("bloc_active_session_id", id)
     }
 
-    const handleUpdateSession = async (id: string, name: string) => {
+    const handleUpdateSession = async (id: string, name: string, description?: string, coverUrl?: string) => {
         try {
-            const res = await api.put<{ data: Session }>(`sessions/${id}`, { name })
+            const res = await api.put<{ data: Session }>(`sessions/${id}`, { 
+                name,
+                description,
+                coverUrl
+            })
             setSessions(prev => prev.map(s => s.id === id ? res.data : s))
         } catch (error) {
             console.error("Failed to update session", error)
@@ -629,6 +669,23 @@ export default function Watchpage() {
         <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
             {/* Main Video Area */}
             <div className="flex-1 relative bg-black/95 flex flex-col items-center">
+                {videoId || playlistId ? (
+                    <Player 
+                        ref={playerRef}
+                        videoId={videoId || ""} 
+                        playlistId={playlistId || ""}
+                        onProgress={handleProgress}
+                        onDuration={setDuration}
+                        onEnded={handleVideoEnded}
+                        onPlaylistLoaded={handlePlaylistLoaded}
+                        onVideoChange={handleVideoChange}
+                    />
+                ) : (
+                    <div className="flex w-full h-full justify-center items-center text-white">
+                        <p>No video or playlist provided.</p>
+                    </div>
+                )}
+
                 {isQuizActive && <QuizOverlay onCorrect={handleQuizCorrect} />}
                 {isFinalQuizActive && (
                     <FinalQuizOverlay 
@@ -637,6 +694,7 @@ export default function Watchpage() {
                             setIsFinalQuizActive(false)
                             handleNextVideo()
                         }} 
+                        onReplay={handleReplay}
                     />
                 )}
                 
@@ -654,23 +712,6 @@ export default function Watchpage() {
                             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                             <p className="text-sm font-medium text-white/90">{notification}</p>
                         </div>
-                    </div>
-                )}
-                
-                {videoId || playlistId ? (
-                    <Player 
-                        ref={playerRef}
-                        videoId={videoId || ""} 
-                        playlistId={playlistId || ""}
-                        onProgress={handleProgress}
-                        onDuration={setDuration}
-                        onEnded={handleVideoEnded}
-                        onPlaylistLoaded={handlePlaylistLoaded}
-                        onVideoChange={handleVideoChange}
-                    />
-                ) : (
-                    <div className="flex w-full h-full justify-center items-center text-white">
-                        <p>No video or playlist provided.</p>
                     </div>
                 )}
             </div>
@@ -738,13 +779,13 @@ export default function Watchpage() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
                     </button>
 
-                    <button 
+                    {/* <button 
                         onClick={() => setActivePanel(activePanel === "sessions" ? null : "sessions")}
                         className={`p-3 rounded-xl transition-colors ${activePanel === "sessions" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
                         title="Sessions"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-                    </button>
+                    </button> */}
 
                     <button 
                         onClick={() => setActivePanel(activePanel === "queue" ? null : "queue")}

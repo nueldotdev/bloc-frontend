@@ -9,6 +9,8 @@ import {
 	Plus
 } from "lucide-react"
 import { Button } from "../ui/button"
+import { useAuth } from "../auth-provider"
+import SessionModal from "../app/SessionModal"
 
 export interface Note {
 	id: string;
@@ -32,6 +34,7 @@ export interface Session {
 	name: string;
 	created_at: string;
 	initial_url?: string;
+	cover_url?: string;
 }
 
 interface QueueItem {
@@ -84,16 +87,18 @@ export default function InteractiveSidebar({
 	sessions?: Session[],
 	currentSessionId?: string,
 	onSwitchSession?: (id: string) => void,
-	onCreateSession?: (name: string) => void,
-	onUpdateSession?: (id: string, name: string) => void,
+	onCreateSession?: (name: string, description?: string, coverUrl?: string) => void,
+	onUpdateSession?: (id: string, name: string, description?: string, coverUrl?: string) => void,
 	onDeleteSession?: (id: string) => void,
 	isGeneratingTopics?: boolean,
 	isAiLoading?: boolean
 }) {
+	const { profile } = useAuth()
 	const [inputText, setInputText] = useState("")
 	const [queueInput, setQueueInput] = useState("")
 	const [chatInput, setChatInput] = useState("")
-	const [sessionInput, setSessionInput] = useState("")
+	const [isModalOpen, setIsModalOpen] = useState(false)
+	const [selectedSession, setSelectedSession] = useState<Session | null>(null)
 	const [isFetching, setIsFetching] = useState(false)
 
 	const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -111,9 +116,6 @@ export default function InteractiveSidebar({
 	// Inline editing states
 	const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
 	const [editNoteText, setEditNoteText] = useState("")
-
-	const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
-	const [editSessionName, setEditSessionName] = useState("")
 
 	const formatTimestamp = (seconds: number) => {
 		const m = Math.floor(seconds / 60)
@@ -150,16 +152,22 @@ export default function InteractiveSidebar({
 		}
 	}
 
-	const startEditingSession = (session: Session) => {
-		setEditingSessionId(session.id)
-		setEditSessionName(session.name)
+	const handleSessionSubmit = async (data: any) => {
+		if (selectedSession && onUpdateSession) {
+			await onUpdateSession(selectedSession.id, data.name, data.description, data.coverUrl)
+		} else if (onCreateSession) {
+			await onCreateSession(data.name, data.description, data.coverUrl)
+		}
 	}
 
-	const saveEditedSession = () => {
-		if (editingSessionId && editSessionName.trim() && onUpdateSession) {
-			onUpdateSession(editingSessionId, editSessionName.trim())
-			setEditingSessionId(null)
-		}
+	const openCreateModal = () => {
+		setSelectedSession(null)
+		setIsModalOpen(true)
+	}
+
+	const openEditModal = (session: Session) => {
+		setSelectedSession(session)
+		setIsModalOpen(true)
 	}
 
 	const handleAddQueue = async (e: React.FormEvent) => {
@@ -192,13 +200,6 @@ export default function InteractiveSidebar({
 		setChatInput("")
 	}
 
-	const handleCreateSession = (e: React.FormEvent) => {
-		e.preventDefault()
-		if (!sessionInput.trim() || !onCreateSession) return
-		onCreateSession(sessionInput.trim())
-		setSessionInput("")
-	}
-
 	if (activePanel === "chat") {
 		return (
 			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
@@ -227,8 +228,24 @@ export default function InteractiveSidebar({
 						</div>
 					)}
 					{chatHistory.map((msg) => (
-						<div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-							<div className={`max-w-[90%] p-4 rounded-2xl text-sm shadow-sm leading-relaxed ${msg.role === 'user'
+						<div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+							<div className="shrink-0 h-8 w-8 rounded-full overflow-hidden bg-muted border border-border">
+								{msg.role === 'user' ? (
+									profile?.avatar_url ? (
+										<img src={profile.avatar_url} alt="You" className="h-full w-full object-cover" />
+									) : (
+										<div className="h-full w-full flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold">
+											YOU
+										</div>
+									)
+								) : (
+									<div className="h-full w-full flex items-center justify-center bg-accent text-accent-foreground">
+										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+									</div>
+								)}
+							</div>
+							<div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[85%]`}>
+								<div className={`p-4 rounded-2xl text-sm shadow-sm leading-relaxed ${msg.role === 'user'
 									? 'bg-primary text-primary-foreground rounded-tr-sm'
 									: 'bg-background border border-border text-foreground rounded-tl-sm'
 								}`}>
@@ -258,7 +275,8 @@ export default function InteractiveSidebar({
 								)}
 							</div>
 						</div>
-					))}
+					</div>
+				))}
 
 					{isAiLoading && (
 						<div className="flex flex-col items-start animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -439,64 +457,63 @@ export default function InteractiveSidebar({
 										: "bg-muted/20 border-border/50 hover:bg-muted/40 hover:border-border"
 									}`}
 							>
-								{editingSessionId === session.id ? (
-									<div className="flex-1 flex gap-2">
-										<input
-											value={editSessionName}
-											onChange={(e) => setEditSessionName(e.target.value)}
-											className="flex-1 bg-background border border-primary/50 rounded-lg px-2 py-1 text-sm focus:outline-none"
-											autoFocus
-										/>
-										<button onClick={saveEditedSession} className="text-primary p-1">
-											<Check className="w-4 h-4" />
-										</button>
-										<button onClick={() => setEditingSessionId(null)} className="text-muted-foreground p-1">
-											<X className="w-4 h-4" />
-										</button>
+								{session.cover_url ? (
+									<div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden border border-border">
+										<img src={session.cover_url} alt="" className="h-full w-full object-cover" />
 									</div>
 								) : (
-									<>
-										<button
-											onClick={() => onSwitchSession?.(session.id)}
-											className="flex-1 text-left truncate text-sm font-semibold"
-										>
-											{session.name}
-										</button>
-										<div className="flex gap-1">
-											<button
-												onClick={() => startEditingSession(session)}
-												className="p-1.5 hover:bg-background rounded-lg text-muted-foreground hover:text-primary transition-colors"
-											>
-												<Edit3 className="w-3.5 h-3.5" />
-											</button>
-											<button
-												onClick={() => onDeleteSession?.(session.id)}
-												className="p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
-											>
-												<Trash2 className="w-3.5 h-3.5" />
-											</button>
-										</div>
-									</>
+									<div className="h-10 w-10 shrink-0 rounded-lg bg-muted flex items-center justify-center border border-border text-muted-foreground">
+										<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
+									</div>
 								)}
+								
+								{session.cover_url ? (
+									<div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden border border-border">
+										<img src={session.cover_url} alt="" className="h-full w-full object-cover" />
+									</div>
+								) : (
+									<div className="h-10 w-10 shrink-0 rounded-lg bg-muted flex items-center justify-center border border-border text-muted-foreground">
+										<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
+									</div>
+								)}
+								
+								<button
+									onClick={() => onSwitchSession?.(session.id)}
+									className="flex-1 text-left truncate text-sm font-semibold"
+								>
+									{session.name}
+								</button>
+								<div className="flex gap-1">
+									<button
+										onClick={() => openEditModal(session)}
+										className="p-1.5 hover:bg-background rounded-lg text-muted-foreground hover:text-primary transition-colors"
+									>
+										<Edit3 className="w-3.5 h-3.5" />
+									</button>
+									<button
+										onClick={() => onDeleteSession?.(session.id)}
+										className="p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
+									>
+										<Trash2 className="w-3.5 h-3.5" />
+									</button>
+								</div>
 							</div>
 						))
 					)}
 				</div>
 
-				<form onSubmit={handleCreateSession} className="flex gap-2">
-					<input
-						value={sessionInput}
-						onChange={(e) => setSessionInput(e.target.value)}
-						className="flex-1 h-12 rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
-						placeholder="New session name..."
-					/>
-					<button
-						type="submit"
-						className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-12 shadow-sm"
-					>
-						<Plus className="w-5 h-5" />
-					</button>
-				</form>
+				<Button onClick={openCreateModal} className="h-12 w-full rounded-xl font-bold gap-2 shadow-sm">
+					<Plus className="w-5 h-5" />
+					New Session
+				</Button>
+
+				<SessionModal 
+					isOpen={isModalOpen}
+					onClose={() => setIsModalOpen(false)}
+					onSubmit={handleSessionSubmit}
+					initialData={selectedSession}
+					title={selectedSession ? "Edit Session" : "Create Session"}
+				/>
 			</div>
 		)
 	}
