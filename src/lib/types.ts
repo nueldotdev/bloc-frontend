@@ -1,4 +1,4 @@
 export type API_Response = {
-    data: any
-    status: string;
-}
+  data: any;
+  status: string;
+};
