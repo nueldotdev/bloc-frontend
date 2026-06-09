@@ -8,7 +8,7 @@ import DashboardSidebar from "@/components/app/DashboardSidebar"
 import { uploadFile } from "@/lib/upload"
 
 export default function Settings() {
-    const { user, profile: authProfile } = useAuth()
+    const { user, profile: authProfile, refreshProfile } = useAuth()
     const [profile, setProfile] = useState<any>(null)
     const [saving, setSaving] = useState(false)
     const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -42,6 +42,7 @@ export default function Settings() {
         setSaving(true)
         try {
             await api.put(`profiles/${user.id}`, profile)
+            await refreshProfile()
             alert("Settings saved successfully!")
         } catch (e) {
             console.error("Failed to save settings", e)
@@ -104,9 +105,35 @@ export default function Settings() {
                         <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/20 border border-border/50">
                             <div className="space-y-0.5">
                                 <label className="text-sm font-semibold">Enable Sanity Checks</label>
-                                <p className="text-xs text-muted-foreground">Get random prompts to keep you engaged.</p>
+                                <p className="text-xs text-muted-foreground">Get prompts to keep you engaged.</p>
                             </div>
                             <Switch checked={profile?.sanity_checks_enabled ?? true} onCheckedChange={() => setProfile({...profile, sanity_checks_enabled: !profile?.sanity_checks_enabled})} />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Intensity Level</label>
+                                <select 
+                                    className="w-full h-12 px-4 rounded-xl border-2 bg-background focus:border-primary transition-all outline-none"
+                                    value={profile?.learning_intensity || 'standard'}
+                                    onChange={(e) => setProfile({...profile, learning_intensity: e.target.value})}
+                                >
+                                    <option value="passive">Passive (No Checks)</option>
+                                    <option value="standard">Standard (Random)</option>
+                                    <option value="hardcore">Hardcore (Concept Driven)</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Check Type</label>
+                                <select 
+                                    className="w-full h-12 px-4 rounded-xl border-2 bg-background focus:border-primary transition-all outline-none"
+                                    value={profile?.preferred_check_type || 'focus'}
+                                    onChange={(e) => setProfile({...profile, preferred_check_type: e.target.value})}
+                                >
+                                    <option value="focus">Focus Checks (Presence)</option>
+                                    <option value="concept">Concept Checks (AI-Generated)</option>
+                                </select>
+                            </div>
                         </div>
                     </section>
 

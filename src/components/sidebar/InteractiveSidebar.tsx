@@ -66,9 +66,12 @@ export default function InteractiveSidebar({
 	onUpdateSession,
 	onDeleteSession,
 	isGeneratingTopics = false,
-	isAiLoading = false
+	isAiLoading = false,
+	videoTranscript = "",
+	onTranscriptUpdate
 }: {
-	activePanel: "chat" | "notes" | "queue" | "topics" | "sessions" | null,
+	activePanel: "chat" | "notes" | "queue" | "topics" | "sessions" | "transcript" | null;
+
 	currentTime: number,
 	onTimestampClick: (seconds: number) => void,
 	queue?: QueueItem[],
@@ -91,7 +94,9 @@ export default function InteractiveSidebar({
 	onUpdateSession?: (id: string, name: string, description?: string, coverUrl?: string) => void,
 	onDeleteSession?: (id: string) => void,
 	isGeneratingTopics?: boolean,
-	isAiLoading?: boolean
+	isAiLoading?: boolean,
+	videoTranscript?: string,
+	onTranscriptUpdate?: (text: string) => void
 }) {
 	const { profile } = useAuth()
 	const [inputText, setInputText] = useState("")
@@ -429,6 +434,46 @@ export default function InteractiveSidebar({
 					)}
 				</div>
 				<p className="text-[10px] text-muted-foreground text-center">Click a topic to ask the AI for more details about it.</p>
+			</div>
+		)
+	}
+
+	if (activePanel === "transcript") {
+		return (
+			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
+				<h2 className="text-xl font-bold mb-6 text-foreground flex items-center gap-3">
+					<div className="p-2 bg-primary/20 rounded-lg text-primary">
+						<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+					</div>
+					Video Transcript
+				</h2>
+
+				<div className="flex-1 overflow-y-auto space-y-4 pr-1">
+					<div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
+						<h4 className="text-sm font-bold mb-2">Manual Transcript Sync</h4>
+						<p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+							If auto-sync fails, paste the video transcript here. This helps the AI understand the content for quizzes and chat.
+						</p>
+						<textarea
+							value={videoTranscript}
+							onChange={(e) => onTranscriptUpdate?.(e.target.value)}
+							placeholder="Paste transcript content here..."
+							className="w-full h-[400px] bg-background border border-border rounded-xl p-4 text-xs focus:ring-2 focus:ring-primary outline-none transition-all resize-none font-sans"
+						/>
+					</div>
+					
+					{videoTranscript && (
+						<div className="bg-primary/5 border border-primary/20 p-4 rounded-2xl">
+							<div className="flex items-center gap-2 text-primary mb-1">
+								<Check className="w-4 h-4" />
+								<span className="text-xs font-bold">Transcript Linked</span>
+							</div>
+							<p className="text-[10px] text-muted-foreground">
+								The AI is currently using the transcript provided above for context.
+							</p>
+						</div>
+					)}
+				</div>
 			</div>
 		)
 	}

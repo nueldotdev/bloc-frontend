@@ -10,6 +10,7 @@ type AuthContextType = {
   loading: boolean
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -20,40 +21,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const syncProfile = async (user: User | null) => {
-      if (!user) return
-      
-      try {
-        const profileRes = await api.get<{ data: any }>(`profiles/${user.id}`)
-        const profile = profileRes.data
-        setProfile(profile)
-        // If name is missing or default, sync from metadata
-        const metadataName = user.user_metadata?.full_name || user.user_metadata?.name
-        if ((!profile?.full_name || profile.full_name === "New Learner") && metadataName) {
-            await api.put(`profiles/${user.id}`, { 
-                ...profile, 
-                full_name: metadataName 
-            })
-        }
-      } catch (e) {
-        console.error("Failed to sync profile:", e)
-      }
+  const syncProfile = async (currentUser: User | null) => {
+    if (!currentUser) {
+      setProfile(null)
+      return
     }
+    
+    try {
+      const profileRes = await api.get<{ data: any }>(`profiles/${currentUser.id}`)
+      const profile = profileRes.data
+      setProfile(profile)
+      // If name is missing or default, sync from metadata
+      const metadataName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name
+      if ((!profile?.full_name || profile.full_name === "New Learner") && metadataName) {
+          await api.put(`profiles/${currentUser.id}`, { 
+              ...profile, 
+              full_name: metadataName 
+          })
+      }
+    } catch (e) {
+      console.error("Failed to sync profile:", e)
+    }
+  }
 
+  const refreshProfile = async () => {
+    if (user) await syncProfile(user)
+  }
+
+  useEffect(() => {
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) syncProfile(session.user)
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      if (currentUser) syncProfile(currentUser)
       setLoading(false)
     })
 
     // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) syncProfile(session.user)
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      if (currentUser) syncProfile(currentUser)
       setLoading(false)
     })
 
@@ -81,7 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     profile,
     signInWithGoogle,
-    signOut
+    signOut,
+    refreshProfile
   }
 
   return (

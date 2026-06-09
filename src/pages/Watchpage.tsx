@@ -313,12 +313,13 @@ export default function Watchpage() {
 
     const mins = (intervalSeconds / 60).toFixed(1);
     const timer = setTimeout(() => {
-      setNotification(`Sanity check scheduled every ${mins} minutes.`);
+      setNotification(`${profile?.learning_intensity === 'hardcore' ? 'AI Boundary check' : 'Sanity check'} scheduled every ${mins} minutes.`);
       setTimeout(() => setNotification(null), 5000);
     }, 100);
 
     const interval = setInterval(() => {
       if (videoId) {
+        if (profile?.learning_intensity === 'passive') return;
         setIsQuizActive((prev) => {
           if (prev) return prev;
           playerRef.current?.pauseVideo();
@@ -347,11 +348,55 @@ export default function Watchpage() {
 
   const fetchTranscript = async (id: string) => {
     try {
-      const transcript = await api.get<API_Response>(`transcripts/${id}`);
-      console.log("[Fetched Transcript]:", transcript.data)
-      return transcript.data.text;
+      // Primary: Try client-side fetch (less likely to be blocked)
+      console.log("[Watchpage] Attempting client-side transcript fetch for:", id);
+      const { YoutubeTranscript } = await import('youtube-transcript');
+      const clientTranscript = await YoutubeTranscript.fetchTranscript(id);
+      
+      if (clientTranscript && clientTranscript.length > 0) {
+        const fullText = clientTranscript.map((t: any) => {
+          const mins = Math.floor(t.offset / 60).toString().padStart(2, '0');
+          const secs = Math.floor(t.offset % 60).toString().padStart(2, '0');
+          return `[${mins}:${secs}] ${t.text}`;
+        }).join(" ");
+        
+        console.log("[Watchpage] Client-side transcript success (with timestamps)!");
+        
+        // Sync to server cache if user is logged in
+        if (user) {
+          api.post("transcripts/sync", {
+            videoId: id,
+            transcript: fullText,
+            transcriptData: clientTranscript, // Save the raw array too
+            title: document.title
+          }).catch(err => console.error("[Watchpage] Failed to sync transcript to cache", err));
+        }
+        
+        return fullText;
+      }
+    } catch (clientError) {
+      console.warn("[Watchpage] Client-side transcript failed, falling back to server...", clientError);
+    }
+
+    try {
+      // Fallback: Server-side API (now returns standardized JSON)
+      const res = await api.get<API_Response>(`transcripts/${id}`);
+      console.log("[Watchpage] Server-side transcript success!", res.data.cached ? "(cached)" : "(fresh)");
+      
+      // If server returned raw data array, we can format it with timestamps
+      if (res.data.transcriptData && Array.isArray(res.data.transcriptData)) {
+        return res.data.transcriptData.map((t: any) => {
+          const mins = Math.floor(t.offset / 60).toString().padStart(2, '0');
+          const secs = Math.floor(t.offset % 60).toString().padStart(2, '0');
+          return `[${mins}:${secs}] ${t.text}`;
+        }).join(" ");
+      }
+
+      return res.data.text;
     } catch (e) {
-      console.error("Failed to fetch transcript", id, e);
+      console.error("[Watchpage] All transcript fetch methods failed for:", id, e);
+      setNotification("Could not auto-sync transcript. AI features might be limited.");
+      setTimeout(() => setNotification(null), 5000);
       return "";
     }
   };
@@ -830,7 +875,14 @@ export default function Watchpage() {
           </div>
         )}
 
-        {isQuizActive && <QuizOverlay onCorrect={handleQuizCorrect} />}
+        {isQuizActive && (
+          <QuizOverlay 
+            onCorrect={handleQuizCorrect} 
+            videoId={videoId || ""} 
+            videoTranscript={videoTranscript} 
+            currentTime={currentTime}
+          />
+        )}
         {isFinalQuizActive && (
           <FinalQuizOverlay
             quizData={finalQuizData}
@@ -902,6 +954,8 @@ export default function Watchpage() {
               onDeleteSession={handleDeleteSession}
               isGeneratingTopics={isGeneratingTopics}
               isAiLoading={isAiLoading}
+              videoTranscript={videoTranscript}
+              onTranscriptUpdate={setVideoTranscript}
             />
           </div>
         </div>
@@ -975,6 +1029,28 @@ export default function Watchpage() {
               strokeLinejoin="round"
             >
               <path d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+          </button>
+
+          <button
+            onClick={() =>
+              setActivePanel(activePanel === "transcript" ? null : "transcript")
+            }
+            className={`p-3 rounded-xl transition-colors ${activePanel === "transcript" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+            title="Transcript Settings"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </button>
 
