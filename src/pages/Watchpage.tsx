@@ -44,7 +44,7 @@ export default function Watchpage() {
 
   // UI State
   const [activePanel, setActivePanel] = useState<
-    "chat" | "notes" | "queue" | "topics" | "sessions" | null
+    "chat" | "notes" | "queue" | "topics" | "sessions" | "transcript" | null
   >(null);
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [isFinalQuizActive, setIsFinalQuizActive] = useState(false);
