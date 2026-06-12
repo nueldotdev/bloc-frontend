@@ -1,16 +1,18 @@
 import { useState, useRef, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
 import {
 	Trash2,
 	Edit3,
 	Check,
-	X,
 	Play,
 	Plus
 } from "lucide-react"
 import { Button } from "../ui/button"
 import { useAuth } from "../auth-provider"
 import SessionModal from "../app/SessionModal"
+import BlocEditor from "../app/editor/BlocEditor"
 
 export interface Note {
 	id: string;
@@ -35,6 +37,7 @@ export interface Session {
 	created_at: string;
 	initial_url?: string;
 	cover_url?: string;
+	queue?: any[];
 }
 
 interface QueueItem {
@@ -58,6 +61,7 @@ export default function InteractiveSidebar({
 	onEditNote,
 	onDeleteNote,
 	onSendMessage,
+	onEditMessage,
 	topics = [],
 	sessions = [],
 	currentSessionId = "",
@@ -68,7 +72,8 @@ export default function InteractiveSidebar({
 	isGeneratingTopics = false,
 	isAiLoading = false,
 	videoTranscript = "",
-	onTranscriptUpdate
+	onTranscriptUpdate,
+	isPreview = false
 }: {
 	activePanel: "chat" | "notes" | "queue" | "topics" | "sessions" | "transcript" | null;
 
@@ -86,6 +91,7 @@ export default function InteractiveSidebar({
 	onEditNote?: (id: string, text: string) => void,
 	onDeleteNote?: (id: string) => void,
 	onSendMessage: (text: string) => void,
+	onEditMessage?: (id: string, text: string) => void,
 	topics?: Topic[],
 	sessions?: Session[],
 	currentSessionId?: string,
@@ -96,7 +102,8 @@ export default function InteractiveSidebar({
 	isGeneratingTopics?: boolean,
 	isAiLoading?: boolean,
 	videoTranscript?: string,
-	onTranscriptUpdate?: (text: string) => void
+	onTranscriptUpdate?: (text: string) => void,
+	isPreview?: boolean
 }) {
 	const { profile } = useAuth()
 	const [inputText, setInputText] = useState("")
@@ -107,6 +114,10 @@ export default function InteractiveSidebar({
 	const [isFetching, setIsFetching] = useState(false)
 
 	const chatContainerRef = useRef<HTMLDivElement>(null)
+	const [notesClearSignal, setNotesClearSignal] = useState(false)
+	const [chatClearSignal, setChatClearSignal] = useState(false)
+	const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+	const [editingChatId, setEditingChatId] = useState<string | null>(null)
 
 	// Auto-scroll to bottom of chat
 	useEffect(() => {
@@ -117,10 +128,6 @@ export default function InteractiveSidebar({
 			})
 		}
 	}, [chatHistory, isAiLoading, activePanel])
-
-	// Inline editing states
-	const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
-	const [editNoteText, setEditNoteText] = useState("")
 
 	const formatTimestamp = (seconds: number) => {
 		const m = Math.floor(seconds / 60)
@@ -141,20 +148,46 @@ export default function InteractiveSidebar({
 	const handleAddNote = (e?: React.FormEvent) => {
 		e?.preventDefault()
 		if (!inputText.trim()) return
-		onAddNote(inputText.trim())
+		
+		if (editingNoteId && onEditNote) {
+			onEditNote(editingNoteId, inputText.trim())
+			setEditingNoteId(null)
+		} else {
+			onAddNote(inputText.trim())
+		}
+
 		setInputText("")
+		setNotesClearSignal(true)
+		setTimeout(() => setNotesClearSignal(false), 100)
 	}
 
 	const startEditingNote = (note: Note) => {
 		setEditingNoteId(note.id)
-		setEditNoteText(note.text)
+		setInputText(note.text)
+		// We can't easily "force" Lexical to update from outside without a prop 
+		// but since we're replacing the whole input experience, let's assume 
+		// the user wants to see the text in the editor.
 	}
 
-	const saveEditedNote = () => {
-		if (editingNoteId && editNoteText.trim() && onEditNote) {
-			onEditNote(editingNoteId, editNoteText.trim())
-			setEditingNoteId(null)
+	const handleSendChat = (e?: React.FormEvent) => {
+		e?.preventDefault()
+		if (!chatInput.trim()) return
+		
+		if (editingChatId && onEditMessage) {
+			onEditMessage(editingChatId, chatInput.trim())
+			setEditingChatId(null)
+		} else {
+			onSendMessage(chatInput.trim())
 		}
+
+		setChatInput("")
+		setChatClearSignal(true)
+		setTimeout(() => setChatClearSignal(false), 100)
+	}
+
+	const startEditingChat = (msg: ChatMessage) => {
+		setEditingChatId(msg.id)
+		setChatInput(msg.text)
 	}
 
 	const handleSessionSubmit = async (data: any) => {
@@ -196,13 +229,6 @@ export default function InteractiveSidebar({
 			setQueueInput("")
 		}
 		setIsFetching(false)
-	}
-
-	const handleSendChat = (e: React.FormEvent) => {
-		e.preventDefault()
-		if (!chatInput.trim()) return
-		onSendMessage(chatInput.trim())
-		setChatInput("")
 	}
 
 	if (activePanel === "chat") {
@@ -249,19 +275,21 @@ export default function InteractiveSidebar({
 									</div>
 								)}
 							</div>
-							<div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[85%]`}>
-								<div className={`p-4 rounded-2xl text-sm shadow-sm leading-relaxed ${msg.role === 'user'
+							<div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[85%] group`}>
+								<div className={`p-4 rounded-2xl text-sm shadow-sm leading-relaxed relative ${msg.role === 'user'
 									? 'bg-primary text-primary-foreground rounded-tr-sm'
 									: 'bg-background border border-border text-foreground rounded-tl-sm'
 								}`}>
-								{msg.role === 'ai' ? (
-									<div className="prose prose-sm prose-invert max-w-none">
+								{msg.role === 'ai' || msg.role === 'user' ? (
+									<div className={`prose prose-sm max-w-none ${msg.role === 'user' ? 'prose-invert' : 'prose-invert'}`}>
 										<ReactMarkdown
+											remarkPlugins={[remarkMath]}
+											rehypePlugins={[rehypeKatex]}
 											components={{
 												p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
 												ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
 												ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
-												code: ({ children }) => <code className="bg-muted px-1 rounded font-mono text-[12px]">{children}</code>
+												code: ({ children }) => <code className={`${msg.role === 'user' ? 'bg-primary-foreground/20' : 'bg-muted'} px-1 rounded font-mono text-[12px]`}>{children}</code>
 											}}
 										>
 											{msg.text}
@@ -270,6 +298,19 @@ export default function InteractiveSidebar({
 								) : (
 									msg.text
 								)}
+								
+								{msg.role === 'user' && !isPreview && (
+									<div className="absolute -left-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+										<button 
+											onClick={() => startEditingChat(msg)}
+											className="p-2 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+											title="Edit Message"
+										>
+											<Edit3 className="w-4 h-4" />
+										</button>
+									</div>
+								)}
+
 								{msg.timestamp !== undefined && (
 									<button
 										onClick={() => onTimestampClick(msg.timestamp!)}
@@ -296,17 +337,32 @@ export default function InteractiveSidebar({
 					)}
 				</div>
 
-				<form onSubmit={handleSendChat} className="flex gap-3">
-					<input
+				{!isPreview && (
+				<div className="flex flex-col gap-2 bg-muted/20 p-3 rounded-2xl border border-border/50 relative">
+					{editingChatId && (
+						<div className="absolute -top-3 left-4 px-2 py-0.5 bg-primary text-[9px] font-bold text-primary-foreground rounded-full shadow-sm z-10 animate-in fade-in slide-in-from-bottom-1">
+							EDITING MESSAGE
+						</div>
+					)}
+					<BlocEditor 
 						value={chatInput}
-						onChange={(e) => setChatInput(e.target.value)}
-						className="flex-1 h-12 w-full rounded-xl border border-input bg-background/50 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
-						placeholder="Ask a question..."
+						onChange={setChatInput}
+						placeholder="Ask a question (type / for commands)..."
+						clearSignal={chatClearSignal}
 					/>
-					<button className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-12 shadow-sm">
-						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
-					</button>
-				</form>
+					<div className="flex justify-between items-center border-t border-border/50 pt-2">
+						<span className="text-[10px] text-muted-foreground">
+							Type <code className="bg-muted px-1 rounded">/</code> for commands
+						</span>
+						<button 
+							onClick={() => handleSendChat()}
+							className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-8 w-8 shadow-sm"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+						</button>
+					</div>
+				</div>
+				)}
 			</div>
 		)
 	}
@@ -334,18 +390,17 @@ export default function InteractiveSidebar({
 							<div key={note.id} className="group relative bg-muted/30 p-4 rounded-2xl border border-border/50 hover:border-primary/30 transition-all">
 								{editingNoteId === note.id ? (
 									<div className="flex flex-col gap-2">
-										<textarea
-											value={editNoteText}
-											onChange={(e) => setEditNoteText(e.target.value)}
-											className="w-full bg-background border border-primary/50 rounded-xl p-3 text-sm focus:outline-none min-h-[80px]"
-											autoFocus
-										/>
+										<p className="text-xs text-primary font-bold animate-pulse">
+											Editing in main box below...
+										</p>
 										<div className="flex justify-end gap-2">
-											<Button size="sm" variant="ghost" className="h-8 rounded-lg" onClick={() => setEditingNoteId(null)}>
-												<X className="w-4 h-4" />
-											</Button>
-											<Button size="sm" className="h-8 rounded-lg" onClick={saveEditedNote}>
-												<Check className="w-4 h-4" />
+											<Button size="sm" variant="ghost" className="h-8 rounded-lg" onClick={() => {
+												setEditingNoteId(null)
+												setInputText("")
+												setNotesClearSignal(true)
+												setTimeout(() => setNotesClearSignal(false), 100)
+											}}>
+												Cancel
 											</Button>
 										</div>
 									</div>
@@ -359,17 +414,26 @@ export default function InteractiveSidebar({
 												{formatTimestamp(note.timestamp)}
 											</button>
 											<div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-												<button onClick={() => startEditingNote(note)} className="p-1 hover:text-primary transition-colors">
-													<Edit3 className="w-3.5 h-3.5" />
-												</button>
-												<button onClick={() => onDeleteNote?.(note.id)} className="p-1 hover:text-destructive transition-colors">
-													<Trash2 className="w-3.5 h-3.5" />
-												</button>
+												{!isPreview && (
+													<>
+														<button onClick={() => startEditingNote(note)} className="p-1 hover:text-primary transition-colors">
+															<Edit3 className="w-3.5 h-3.5" />
+														</button>
+														<button onClick={() => onDeleteNote?.(note.id)} className="p-1 hover:text-destructive transition-colors">
+															<Trash2 className="w-3.5 h-3.5" />
+														</button>
+													</>
+												)}
 											</div>
 										</div>
-										<p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-											{note.text}
-										</p>
+										<div className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed text-foreground/90">
+											<ReactMarkdown
+												remarkPlugins={[remarkMath]}
+												rehypePlugins={[rehypeKatex]}
+											>
+												{note.text}
+											</ReactMarkdown>
+										</div>
 									</>
 								)}
 							</div>
@@ -377,20 +441,33 @@ export default function InteractiveSidebar({
 					)}
 				</div>
 
-				<form onSubmit={handleAddNote} className="flex gap-2">
-					<input
+				{!isPreview && (
+				<div className="flex flex-col gap-2 bg-muted/20 p-3 rounded-2xl border border-border/50 relative">
+					{editingNoteId && (
+						<div className="absolute -top-3 left-4 px-2 py-0.5 bg-primary text-[9px] font-bold text-primary-foreground rounded-full shadow-sm z-10 animate-in fade-in slide-in-from-bottom-1">
+							EDITING NOTE
+						</div>
+					)}
+					<BlocEditor 
 						value={inputText}
-						onChange={(e) => setInputText(e.target.value)}
-						className="flex-1 h-12 rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
-						placeholder="Add a note at this time..."
+						onChange={setInputText}
+						placeholder="Add a note (type / for commands)..."
+						clearSignal={notesClearSignal}
 					/>
-					<button
-						type="submit"
-						className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-12 shadow-sm"
-					>
-						<Plus className="w-5 h-5" />
-					</button>
-				</form>
+					<div className="flex justify-between items-center border-t border-border/50 pt-2">
+						<span className="text-[10px] text-muted-foreground">
+							{editingNoteId ? "Press Save to update your note" : "Type / for math & formatting"}
+						</span>
+						<button
+							onClick={() => handleAddNote()}
+							className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 text-xs shadow-sm gap-2"
+						>
+							{editingNoteId ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+							{editingNoteId ? "Update Note" : "Save Note"}
+						</button>
+					</div>
+				</div>
+				)}
 			</div>
 		)
 	}
@@ -419,14 +496,15 @@ export default function InteractiveSidebar({
 						topics.map((topic, i) => (
 							<button
 								key={i}
+								disabled={isPreview}
 								onClick={() => {
-									onSendMessage(`Tell me more about "${topic}" from this video.`)
+									if (!isPreview) onSendMessage(`Tell me more about "${topic}" from this video.`)
 								}}
-								className="w-full text-left p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group"
+								className="w-full text-left p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								<div className="flex items-center justify-between mb-1">
 									<span className="text-[10px] font-bold uppercase tracking-wider text-primary opacity-70">Topic {i + 1}</span>
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+									{!isPreview && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>}
 								</div>
 								<p className="text-sm font-semibold">{topic}</p>
 							</button>
@@ -528,6 +606,7 @@ export default function InteractiveSidebar({
 								>
 									{session.name}
 								</button>
+								{!isPreview && (
 								<div className="flex gap-1">
 									<button
 										onClick={() => openEditModal(session)}
@@ -542,15 +621,18 @@ export default function InteractiveSidebar({
 										<Trash2 className="w-3.5 h-3.5" />
 									</button>
 								</div>
+								)}
 							</div>
 						))
 					)}
 				</div>
 
+				{!isPreview && (
 				<Button onClick={openCreateModal} className="h-12 w-full rounded-xl font-bold gap-2 shadow-sm">
 					<Plus className="w-5 h-5" />
 					New Session
 				</Button>
+				)}
 
 				<SessionModal 
 					isOpen={isModalOpen}
@@ -602,18 +684,21 @@ export default function InteractiveSidebar({
 											<Play className="w-3.5 h-3.5 fill-primary" />
 										</button>
 									)}
+									{!isPreview && (
 									<button
 										onClick={() => onRemoveFromQueue?.(item.id)}
 										className="p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
 									>
 										<Trash2 className="w-3.5 h-3.5" />
 									</button>
+									)}
 								</div>
 							</div>
 						))
 					)}
 				</div>
 
+				{!isPreview && (
 				<form onSubmit={handleAddQueue} className="flex gap-2">
 					<input
 						value={queueInput}
@@ -634,6 +719,7 @@ export default function InteractiveSidebar({
 						)}
 					</button>
 				</form>
+				)}
 			</div>
 		)
 	}

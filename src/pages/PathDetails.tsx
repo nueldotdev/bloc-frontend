@@ -103,6 +103,8 @@ export default function PathDetails() {
     const params = new URLSearchParams()
     if (videoId) params.set("v", videoId)
     if (playlistId) params.set("list", playlistId)
+    params.set("preview", "true")
+    if (path?.id) params.set("sessionId", path.id)
     
     navigate(`/watch?${params.toString()}`)
   }

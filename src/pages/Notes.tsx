@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import ReactMarkdown from "react-markdown"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth-provider"
 import api from "@/lib/api"
@@ -200,9 +203,14 @@ export default function Notes() {
                                         </div>
                                         
                                         <div className={`transition-all duration-300 overflow-hidden ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-20 opacity-80'}`}>
-                                            <p className={`text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap ${!isExpanded && 'line-clamp-2 italic'}`}>
-                                                {isExpanded ? note.text : `"${note.text}"`}
-                                            </p>
+                                            <div className={`prose prose-sm prose-invert max-w-none text-muted-foreground text-sm leading-relaxed ${!isExpanded && 'line-clamp-2 italic'}`}>
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkMath]}
+                                                    rehypePlugins={[rehypeKatex]}
+                                                >
+                                                    {isExpanded ? note.text : `"${note.text}"`}
+                                                </ReactMarkdown>
+                                            </div>
                                         </div>
                                         
                                         <div className="flex items-center justify-between pt-2">

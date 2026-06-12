@@ -87,6 +87,26 @@ export default function Watchpage() {
     return localStorage.getItem("bloc_active_session_id") || "";
   });
 
+  const isPreview = searchParams.get("preview") === "true";
+  const previewSessionId = searchParams.get("sessionId");
+
+  // Load Preview Data
+  useEffect(() => {
+    const loadPreview = async () => {
+      if (isPreview && previewSessionId) {
+        try {
+          const res = await api.get<{ data: Session }>(`sessions/${previewSessionId}`);
+          if (res.data.queue) {
+            setQueue(res.data.queue);
+          }
+        } catch (error) {
+          console.error("Failed to load preview session", error);
+        }
+      }
+    };
+    loadPreview();
+  }, [isPreview, previewSessionId]);
+
   // Player status
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -149,14 +169,15 @@ export default function Watchpage() {
   // Load data from server if logged in
   useEffect(() => {
     const loadServerData = async () => {
-      if (user && videoId && currentSessionId) {
+      const targetSessionId = isPreview ? previewSessionId : currentSessionId;
+      if (videoId && targetSessionId) {
         try {
           const [notesRes, chatRes] = await Promise.all([
             api.get<{ data: Note[] }>(
-              `notes/${videoId}?sessionId=${currentSessionId}`,
+              `notes/${videoId}?sessionId=${targetSessionId}`,
             ),
             api.get<{ data: any[] }>(
-              `gemini/history/${videoId}?sessionId=${currentSessionId}`,
+              `gemini/history/${videoId}?sessionId=${targetSessionId}`,
             ),
           ]);
 
@@ -188,7 +209,7 @@ export default function Watchpage() {
   // Sync queue to server when it changes
   useEffect(() => {
     const sync = async () => {
-      if (user && currentSessionId) {
+      if (user && currentSessionId && !isPreview) {
         const queueStr = JSON.stringify(queue);
         if (queueStr !== lastSyncedQueueRef.current) {
           try {
@@ -220,7 +241,7 @@ export default function Watchpage() {
 
   useEffect(() => {
     const syncProgress = async (isImmediate = false) => {
-      if (user && currentSessionId && videoId) {
+      if (user && currentSessionId && videoId && !isPreview) {
         const time =
           currentVideoIdRef.current === videoId ? currentTimeRef.current : 0;
         const last = lastSyncedProgressRef.current;
@@ -741,6 +762,24 @@ export default function Watchpage() {
     ],
   );
 
+  const handleEditMessage = useCallback(
+    async (id: string, text: string) => {
+      if (!videoId) return;
+      // For now, we only support local editing for the UI session
+      // In a real app, you'd send this to the backend
+      setVideoDataMap((prev) => ({
+        ...prev,
+        [videoId]: {
+          ...prev[videoId],
+          chats: prev[videoId].chats.map((c) => (c.id === id ? { ...c, text } : c)),
+        },
+      }));
+      setNotification("Message updated locally");
+      setTimeout(() => setNotification(null), 2000);
+    },
+    [videoId],
+  );
+
   const handleQuizCorrect = () => {
     setIsQuizActive(false);
     playerRef.current?.playVideo();
@@ -945,6 +984,7 @@ export default function Watchpage() {
               onEditNote={handleEditNote}
               onDeleteNote={handleDeleteNote}
               onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
               topics={currentVideoData?.topics || []}
               sessions={sessions}
               currentSessionId={currentSessionId}
@@ -956,6 +996,7 @@ export default function Watchpage() {
               isAiLoading={isAiLoading}
               videoTranscript={videoTranscript}
               onTranscriptUpdate={setVideoTranscript}
+              isPreview={searchParams.get("preview") === "true"}
             />
           </div>
         </div>

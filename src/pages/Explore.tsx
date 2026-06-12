@@ -101,6 +101,8 @@ export default function Explore() {
 		const params = new URLSearchParams()
 		if (videoId) params.set("v", videoId)
 		if (playlistId) params.set("list", playlistId)
+		params.set("preview", "true")
+		params.set("sessionId", session.id)
 
 		navigate(`/watch?${params.toString()}`)
 	}
