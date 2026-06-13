@@ -9,9 +9,10 @@ import {
   Search, 
   Video
 } from "lucide-react"
-import DashboardSidebar from "@/components/app/DashboardSidebar"
+import DashboardLayout from "@/components/app/DashboardLayout"
 
 interface SavedVideo {
+// ... (interface unchanged)
     id: string;
     video_id: string;
     title: string;
@@ -61,10 +62,7 @@ export default function Library() {
   )
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
-      <DashboardSidebar />
-
-      <main className="lg:ml-64 p-6 md:p-10 max-w-7xl mx-auto min-h-screen">
+    <DashboardLayout>
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
             <div>
                 <h1 className="text-4xl font-bold tracking-tight mb-1">Your Library</h1>
@@ -139,7 +137,7 @@ export default function Library() {
                 </div>
             )}
         </section>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }
+

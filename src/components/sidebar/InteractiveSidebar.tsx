@@ -73,7 +73,9 @@ export default function InteractiveSidebar({
 	isAiLoading = false,
 	videoTranscript = "",
 	onTranscriptUpdate,
-	isPreview = false
+	isPreview = false,
+	isMobile = false,
+	onClose
 }: {
 	activePanel: "chat" | "notes" | "queue" | "topics" | "sessions" | "transcript" | null;
 
@@ -103,7 +105,9 @@ export default function InteractiveSidebar({
 	isAiLoading?: boolean,
 	videoTranscript?: string,
 	onTranscriptUpdate?: (text: string) => void,
-	isPreview?: boolean
+	isPreview?: boolean,
+	isMobile?: boolean,
+	onClose?: () => void
 }) {
 	const { profile } = useAuth()
 	const [inputText, setInputText] = useState("")
@@ -233,7 +237,8 @@ export default function InteractiveSidebar({
 
 	if (activePanel === "chat") {
 		return (
-			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{!isMobile && (
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
@@ -241,42 +246,45 @@ export default function InteractiveSidebar({
 						</div>
 						AI Assistant
 					</h2>
-					<button
-						onClick={onTriggerQuizManual}
-						className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground hover:text-primary transition-colors border border-border px-2 py-1 rounded-md"
-					>
-						Trigger Quiz
-					</button>
+					<div className="flex items-center gap-2">
+						<button
+							onClick={onTriggerQuizManual}
+							className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground hover:text-primary transition-colors border border-border px-2 py-1 rounded-md"
+						>
+							Trigger Quiz
+						</button>
+					</div>
 				</div>
+				)}
 
 				<div
 					ref={chatContainerRef}
-					className="flex-1 bg-muted/40 rounded-2xl border border-border p-5 overflow-y-auto space-y-4 mb-4"
+					className={`flex-1 bg-muted/40 rounded-2xl border border-border overflow-y-auto space-y-4 md:space-y-4 mb-3 md:mb-4 ${isMobile ? 'p-3 mt-2' : 'p-5'}`}
 				>
 					{chatHistory.length === 0 && (
-						<div className="bg-background border border-border text-foreground p-4 rounded-2xl rounded-tl-sm text-sm shadow-sm leading-relaxed">
+						<div className="bg-background border border-border text-foreground p-3 md:p-4 rounded-xl md:rounded-2xl rounded-tl-sm text-sm shadow-sm leading-relaxed">
 							Hello! I am your AI learning assistant. I understand you're at <button onClick={() => onTimestampClick(currentTime)} className="text-primary font-mono hover:underline">{formatTimestamp(currentTime)}</button>. How can I help?
 						</div>
 					)}
 					{chatHistory.map((msg) => (
-						<div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-							<div className="shrink-0 h-8 w-8 rounded-full overflow-hidden bg-muted border border-border">
+						<div key={msg.id} className={`flex gap-2 md:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+							<div className="shrink-0 h-7 w-7 md:h-8 md:w-8 rounded-full overflow-hidden bg-muted border border-border">
 								{msg.role === 'user' ? (
 									profile?.avatar_url ? (
 										<img src={profile.avatar_url} alt="You" className="h-full w-full object-cover" />
 									) : (
-										<div className="h-full w-full flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold">
+										<div className="h-full w-full flex items-center justify-center bg-primary text-primary-foreground text-[9px] md:text-[10px] font-bold">
 											YOU
 										</div>
 									)
 								) : (
 									<div className="h-full w-full flex items-center justify-center bg-accent text-accent-foreground">
-										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+										<svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "14" : "16"} height={isMobile ? "14" : "16"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
 									</div>
 								)}
 							</div>
-							<div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[85%] group`}>
-								<div className={`p-4 rounded-2xl text-sm shadow-sm leading-relaxed relative ${msg.role === 'user'
+							<div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[88%] md:max-w-[85%] group`}>
+								<div className={`${isMobile ? 'p-3' : 'p-4'} rounded-xl md:rounded-2xl text-sm shadow-sm leading-relaxed relative ${msg.role === 'user'
 									? 'bg-primary text-primary-foreground rounded-tr-sm'
 									: 'bg-background border border-border text-foreground rounded-tl-sm'
 								}`}>
@@ -338,7 +346,7 @@ export default function InteractiveSidebar({
 				</div>
 
 				{!isPreview && (
-				<div className="flex flex-col gap-2 bg-muted/20 p-3 rounded-2xl border border-border/50 relative">
+				<div className={`flex flex-col bg-muted/20 rounded-xl md:rounded-2xl border border-border/50 relative ${isMobile ? 'p-2 gap-1.5' : 'p-3 gap-2'}`}>
 					{editingChatId && (
 						<div className="absolute -top-3 left-4 px-2 py-0.5 bg-primary text-[9px] font-bold text-primary-foreground rounded-full shadow-sm z-10 animate-in fade-in slide-in-from-bottom-1">
 							EDITING MESSAGE
@@ -352,13 +360,13 @@ export default function InteractiveSidebar({
 					/>
 					<div className="flex justify-between items-center border-t border-border/50 pt-2">
 						<span className="text-[10px] text-muted-foreground">
-							Type <code className="bg-muted px-1 rounded">/</code> for commands
+							{isMobile ? "/ for math" : "Type / for math & commands"}
 						</span>
 						<button 
 							onClick={() => handleSendChat()}
-							className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-8 w-8 shadow-sm"
+							className={`inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm ${isMobile ? 'h-7 w-7' : 'h-8 w-8'}`}
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+							<svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "12" : "14"} height={isMobile ? "12" : "14"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
 						</button>
 					</div>
 				</div>
@@ -369,7 +377,8 @@ export default function InteractiveSidebar({
 
 	if (activePanel === "notes") {
 		return (
-			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{!isMobile && (
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
@@ -378,16 +387,17 @@ export default function InteractiveSidebar({
 						Study Notes
 					</h2>
 				</div>
+				)}
 
-				<div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
+				<div className={`flex-1 overflow-y-auto pr-1 ${isMobile ? 'space-y-3 mb-3 mt-2' : 'space-y-3 mb-4'}`}>
 					{notes.length === 0 ? (
 						<div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-							<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-4"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z" /><path d="M15 3v6h6" /><path d="M9 18h6" /></svg>
+							<svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "32" : "48"} height={isMobile ? "32" : "48"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-4"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z" /><path d="M15 3v6h6" /><path d="M9 18h6" /></svg>
 							<p className="text-sm">No notes yet. Type below to capture a moment!</p>
 						</div>
 					) : (
 						notes.map(note => (
-							<div key={note.id} className="group relative bg-muted/30 p-4 rounded-2xl border border-border/50 hover:border-primary/30 transition-all">
+							<div key={note.id} className={`group relative bg-muted/30 rounded-xl md:rounded-2xl border border-border/50 hover:border-primary/30 transition-all ${isMobile ? 'p-4' : 'p-4'}`}>
 								{editingNoteId === note.id ? (
 									<div className="flex flex-col gap-2">
 										<p className="text-xs text-primary font-bold animate-pulse">
@@ -426,7 +436,7 @@ export default function InteractiveSidebar({
 												)}
 											</div>
 										</div>
-										<div className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed text-foreground/90">
+										<div className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed text-foreground/90 overflow-x-auto">
 											<ReactMarkdown
 												remarkPlugins={[remarkMath]}
 												rehypePlugins={[rehypeKatex]}
@@ -442,7 +452,7 @@ export default function InteractiveSidebar({
 				</div>
 
 				{!isPreview && (
-				<div className="flex flex-col gap-2 bg-muted/20 p-3 rounded-2xl border border-border/50 relative">
+				<div className={`flex flex-col bg-muted/20 rounded-xl md:rounded-2xl border border-border/50 relative ${isMobile ? 'p-2 gap-1.5' : 'p-3 gap-2'}`}>
 					{editingNoteId && (
 						<div className="absolute -top-3 left-4 px-2 py-0.5 bg-primary text-[9px] font-bold text-primary-foreground rounded-full shadow-sm z-10 animate-in fade-in slide-in-from-bottom-1">
 							EDITING NOTE
@@ -456,14 +466,14 @@ export default function InteractiveSidebar({
 					/>
 					<div className="flex justify-between items-center border-t border-border/50 pt-2">
 						<span className="text-[10px] text-muted-foreground">
-							{editingNoteId ? "Press Save to update your note" : "Type / for math & formatting"}
+							{editingNoteId ? (isMobile ? "Press Save" : "Press Save to update") : (isMobile ? "/ for math" : "Type / for math & formatting")}
 						</span>
 						<button
 							onClick={() => handleAddNote()}
-							className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 text-xs shadow-sm gap-2"
+							className={`inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm gap-2 ${isMobile ? 'h-7 px-3 text-[10px]' : 'h-8 px-4 text-xs'}`}
 						>
 							{editingNoteId ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-							{editingNoteId ? "Update Note" : "Save Note"}
+							{editingNoteId ? "Update" : "Save Note"}
 						</button>
 					</div>
 				</div>
@@ -474,18 +484,22 @@ export default function InteractiveSidebar({
 
 	if (activePanel === "topics") {
 		return (
-			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
-				<h2 className="text-xl font-bold mb-6 text-foreground flex items-center gap-3">
-					<div className="p-2 bg-primary/20 rounded-lg text-primary">
-						<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7" /></svg>
-					</div>
-					Video Topics
-				</h2>
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{!isMobile && (
+				<div className="flex items-center justify-between mb-6">
+					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
+						<div className="p-2 bg-primary/20 rounded-lg text-primary">
+							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7" /></svg>
+						</div>
+						Video Topics
+					</h2>
+				</div>
+				)}
 
-				<div className="flex-1 overflow-y-auto space-y-3 mb-4">
+				<div className={`flex-1 overflow-y-auto pr-1 ${isMobile ? 'space-y-3 mb-3 mt-2' : 'space-y-3 mb-4'}`}>
 					{isGeneratingTopics ? (
 						<div className="h-full flex flex-col items-center justify-center text-center p-8">
-							<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
+							<div className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} animate-spin rounded-full border-4 border-primary border-t-transparent mb-4` } />
 							<p className="text-sm text-muted-foreground">AI is analyzing the video content...</p>
 						</div>
 					) : topics.length === 0 ? (
@@ -500,48 +514,52 @@ export default function InteractiveSidebar({
 								onClick={() => {
 									if (!isPreview) onSendMessage(`Tell me more about "${topic}" from this video.`)
 								}}
-								className="w-full text-left p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+								className={`w-full text-left rounded-xl border border-border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group disabled:opacity-50 disabled:cursor-not-allowed ${isMobile ? 'p-4' : 'p-4'}`}
 							>
 								<div className="flex items-center justify-between mb-1">
-									<span className="text-[10px] font-bold uppercase tracking-wider text-primary opacity-70">Topic {i + 1}</span>
+									<span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-primary opacity-70">Topic {i + 1}</span>
 									{!isPreview && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>}
 								</div>
-								<p className="text-sm font-semibold">{topic}</p>
+								<p className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>{topic}</p>
 							</button>
 						))
 					)}
 				</div>
-				<p className="text-[10px] text-muted-foreground text-center">Click a topic to ask the AI for more details about it.</p>
+				<p className="text-[9px] md:text-[10px] text-muted-foreground text-center">Click a topic to ask the AI for more details about it.</p>
 			</div>
 		)
 	}
 
 	if (activePanel === "transcript") {
 		return (
-			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
-				<h2 className="text-xl font-bold mb-6 text-foreground flex items-center gap-3">
-					<div className="p-2 bg-primary/20 rounded-lg text-primary">
-						<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-					</div>
-					Video Transcript
-				</h2>
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{!isMobile && (
+				<div className="flex items-center justify-between mb-6">
+					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
+						<div className="p-2 bg-primary/20 rounded-lg text-primary">
+							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+						</div>
+						Video Transcript
+					</h2>
+				</div>
+				)}
 
-				<div className="flex-1 overflow-y-auto space-y-4 pr-1">
-					<div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
+				<div className={`flex-1 overflow-y-auto pr-1 ${isMobile ? 'space-y-3 mt-1' : 'space-y-4'}`}>
+					<div className={`bg-muted/30 rounded-xl md:rounded-2xl border border-border/50 ${isMobile ? 'p-3' : 'p-4'}`}>
 						<h4 className="text-sm font-bold mb-2">Manual Transcript Sync</h4>
 						<p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-							If auto-sync fails, paste the video transcript here. This helps the AI understand the content for quizzes and chat.
+							If auto-sync fails, paste the video transcript here. This helps the AI understand the content.
 						</p>
 						<textarea
 							value={videoTranscript}
 							onChange={(e) => onTranscriptUpdate?.(e.target.value)}
 							placeholder="Paste transcript content here..."
-							className="w-full h-[400px] bg-background border border-border rounded-xl p-4 text-xs focus:ring-2 focus:ring-primary outline-none transition-all resize-none font-sans"
+							className={`w-full bg-background border border-border rounded-xl p-4 text-xs focus:ring-2 focus:ring-primary outline-none transition-all resize-none font-sans ${isMobile ? 'h-[250px]' : 'h-[400px]'}`}
 						/>
 					</div>
 					
 					{videoTranscript && (
-						<div className="bg-primary/5 border border-primary/20 p-4 rounded-2xl">
+						<div className={`bg-primary/5 border border-primary/20 rounded-xl md:rounded-2xl ${isMobile ? 'p-3' : 'p-4'}`}>
 							<div className="flex items-center gap-2 text-primary mb-1">
 								<Check className="w-4 h-4" />
 								<span className="text-xs font-bold">Transcript Linked</span>
@@ -558,15 +576,19 @@ export default function InteractiveSidebar({
 
 	if (activePanel === "sessions") {
 		return (
-			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
-				<h2 className="text-xl font-bold mb-6 text-foreground flex items-center gap-3">
-					<div className="p-2 bg-primary/20 rounded-lg text-primary">
-						<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
-					</div>
-					My Sessions
-				</h2>
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{!isMobile && (
+				<div className="flex items-center justify-between mb-6">
+					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
+						<div className="p-2 bg-primary/20 rounded-lg text-primary">
+							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
+						</div>
+						My Sessions
+					</h2>
+				</div>
+				)}
 
-				<div className="flex-1 overflow-y-auto space-y-2 mb-4">
+				<div className={`flex-1 overflow-y-auto pr-1 ${isMobile ? 'space-y-1.5 mb-3 mt-1' : 'space-y-2 mb-4'}`}>
 					{sessions.length === 0 ? (
 						<div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
 							<p className="text-sm">You haven't created any sessions yet.</p>
@@ -575,17 +597,17 @@ export default function InteractiveSidebar({
 						sessions.map((session) => (
 							<div
 								key={session.id}
-								className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${session.id === currentSessionId
+								className={`flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border transition-all ${session.id === currentSessionId
 										? "bg-primary/10 border-primary/30 shadow-sm"
 										: "bg-muted/20 border-border/50 hover:bg-muted/40 hover:border-border"
-									}`}
+									} ${isMobile ? 'p-2' : 'p-3'}`}
 							>
 								{session.cover_url ? (
-									<div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden border border-border">
+									<div className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} shrink-0 rounded-lg overflow-hidden border border-border`}>
 										<img src={session.cover_url} alt="" className="h-full w-full object-cover" />
 									</div>
 								) : (
-									<div className="h-10 w-10 shrink-0 rounded-lg bg-muted flex items-center justify-center border border-border text-muted-foreground">
+									<div className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} shrink-0 rounded-lg bg-muted flex items-center justify-center border border-border text-muted-foreground`}>
 										<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
 									</div>
 								)}
@@ -647,15 +669,19 @@ export default function InteractiveSidebar({
 
 	if (activePanel === "queue") {
 		return (
-			<div className="flex flex-col h-full w-full px-6 pb-6 animate-in fade-in duration-500">
-				<h2 className="text-xl font-bold mb-6 text-foreground flex items-center gap-3">
-					<div className="p-2 bg-primary/20 rounded-lg text-primary">
-						<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" /></svg>
-					</div>
-					Up Next
-				</h2>
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{!isMobile && (
+				<div className="flex items-center justify-between mb-6">
+					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
+						<div className="p-2 bg-primary/20 rounded-lg text-primary">
+							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" /></svg>
+						</div>
+						Up Next
+					</h2>
+				</div>
+				)}
 
-				<div className="flex-1 overflow-y-auto space-y-3 mb-4">
+				<div className={`flex-1 overflow-y-auto pr-1 ${isMobile ? 'space-y-3 mb-3 mt-2' : 'space-y-3 mb-4'}`}>
 					{queue.length === 0 ? (
 						<div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
 							<p className="text-sm">Your queue is empty.</p>
@@ -664,15 +690,15 @@ export default function InteractiveSidebar({
 						queue.map((item, index) => (
 							<div
 								key={`${item.id}-${index}`}
-								className={`group flex items-center gap-3 p-3 rounded-2xl border transition-all ${item.id === currentVideoId
+								className={`group flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border transition-all ${item.id === currentVideoId
 										? "bg-primary/10 border-primary/30 shadow-sm"
 										: "bg-muted/20 border-border/50 hover:bg-muted/40"
-									}`}
+									} ${isMobile ? 'p-4' : 'p-3'}`}
 							>
-								<div className="text-[10px] font-bold text-muted-foreground w-4 flex items-center justify-center">
-									{item.id === currentVideoId ? <Play className="w-3 h-3 text-primary fill-primary" /> : index + 1}
+								<div className={`font-bold text-muted-foreground flex items-center justify-center ${isMobile ? 'text-[9px] w-3' : 'text-[10px] w-4'}`}>
+									{item.id === currentVideoId ? <Play className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} text-primary fill-primary`} /> : index + 1}
 								</div>
-								<div className="flex-1 truncate text-sm font-medium pr-2">
+								<div className={`flex-1 truncate font-medium pr-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
 									{item.title}
 								</div>
 								<div className="flex gap-1">
@@ -681,15 +707,15 @@ export default function InteractiveSidebar({
 											onClick={() => onPlayFromQueue?.(item.id)}
 											className="p-1.5 hover:bg-background rounded-lg text-primary transition-colors"
 										>
-											<Play className="w-3.5 h-3.5 fill-primary" />
+											<Play className={`${isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'} fill-primary`} />
 										</button>
 									)}
 									{!isPreview && (
 									<button
 										onClick={() => onRemoveFromQueue?.(item.id)}
-										className="p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+										className={`p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive transition-colors ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
 									>
-										<Trash2 className="w-3.5 h-3.5" />
+										<Trash2 className={`${isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
 									</button>
 									)}
 								</div>
@@ -703,14 +729,14 @@ export default function InteractiveSidebar({
 					<input
 						value={queueInput}
 						onChange={(e) => setQueueInput(e.target.value)}
-						className="flex-1 h-12 rounded-xl border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm disabled:opacity-50"
-						placeholder={isFetching ? "Fetching title..." : "Paste YouTube URL to queue..."}
+						className={`${isMobile ? 'h-10' : 'h-12'} flex-1 rounded-xl border border-input bg-background px-4 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm disabled:opacity-50`}
+						placeholder={isFetching ? "Fetching title..." : "Paste YouTube URL..."}
 						disabled={isFetching}
 					/>
 					<button
 						type="submit"
 						disabled={isFetching}
-						className="inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-12 shadow-sm disabled:opacity-50"
+						className={`inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm disabled:opacity-50 ${isMobile ? 'h-10 w-10' : 'h-12 w-12'}`}
 					>
 						{isFetching ? (
 							<div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />

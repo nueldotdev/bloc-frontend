@@ -49,8 +49,8 @@ export default function FinalQuizOverlay({
 
     if (currentStep === "intro") {
         return (
-            <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-500">
-                <div className="max-w-md w-full bg-card border border-border p-10 rounded-[3rem] shadow-2xl text-center space-y-8">
+            <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-500">
+                <div className="max-w-md w-full bg-card border border-border p-6 md:p-10 rounded-[2.5rem] md:rounded-[3rem] shadow-2xl text-center space-y-6 md:space-y-8">
                     <div className="w-20 h-20 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary mx-auto shadow-inner">
                         <Trophy className="w-10 h-10" />
                     </div>
@@ -59,7 +59,7 @@ export default function FinalQuizOverlay({
                         <p className="text-muted-foreground text-sm font-medium">You've finished the video! Ready to test what you've learned?</p>
                     </div>
                     <div className="bg-muted/30 p-4 rounded-2xl border border-border/50 text-xs font-bold uppercase tracking-widest text-primary/70">
-                        5 Questions • AI Generated • Mastery Check
+                        {quizData.length} Questions • AI Generated • Mastery Check
                     </div>
                     <Button onClick={() => setCurrentStep("quiz")} className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95">
                         Start Quiz
@@ -72,8 +72,8 @@ export default function FinalQuizOverlay({
     if (currentStep === "result") {
         const percentage = (score / quizData.length) * 100
         return (
-            <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in zoom-in duration-500">
-                <div className="max-w-md w-full bg-card border border-border p-10 rounded-[3rem] shadow-2xl text-center space-y-8">
+            <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8 animate-in fade-in zoom-in duration-500">
+                <div className="max-w-md w-full bg-card border border-border p-6 md:p-10 rounded-[2.5rem] md:rounded-[3rem] shadow-2xl text-center space-y-6 md:space-y-8">
                     <div className="relative w-32 h-32 mx-auto">
                         <svg className="w-full h-full" viewBox="0 0 100 100">
                             <circle className="text-muted stroke-current" strokeWidth="8" fill="transparent" r="40" cx="50" cy="50" />
@@ -85,19 +85,19 @@ export default function FinalQuizOverlay({
                     </div>
 
                     <div className="space-y-2">
-                        <h2 className="text-3xl font-bold tracking-tight">
+                        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
                             {percentage >= 80 ? "Mastery Achieved!" : percentage >= 50 ? "Good Progress!" : "Keep Learning!"}
                         </h2>
-                        <p className="text-muted-foreground text-sm font-medium">
+                        <p className="text-muted-foreground text-xs md:text-sm font-medium">
                             {percentage >= 80 ? "Excellent work! You've grasped the core concepts of this video." : "You're getting there. Review your notes to bridge the gaps."}
                         </p>
                     </div>
 
-                    <div className="flex flex-col gap-3">
-                        <Button onClick={onClose} className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 transition-all active:scale-95">
+                    <div className="flex flex-col gap-3 w-full">
+                        <Button onClick={onClose} className="w-full h-12 md:h-14 rounded-2xl text-base md:text-lg font-bold shadow-xl shadow-primary/20 transition-all active:scale-95">
                             Finish Session
                         </Button>
-                        <Button onClick={onReplay} variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold border-2 transition-all active:scale-95">
+                        <Button onClick={onReplay} variant="outline" className="w-full h-12 md:h-14 rounded-2xl text-base md:text-lg font-bold border-2 transition-all active:scale-95">
                             Review Video
                         </Button>
                     </div>
@@ -110,23 +110,23 @@ export default function FinalQuizOverlay({
     const selectedAnswer = answers[currentQuestion.id]
 
     return (
-        <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-300">
-            <div className="max-w-2xl w-full bg-card border border-border p-8 md:p-12 rounded-[3rem] shadow-2xl space-y-8 overflow-y-auto max-h-[90vh]">
+        <div className="absolute inset-0 z-100 bg-background/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
+            <div className="max-w-2xl w-full bg-card border border-border p-6 md:p-12 rounded-[2.5rem] md:rounded-[3rem] shadow-2xl space-y-6 md:space-y-8 overflow-y-auto max-h-[95vh]">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/10">
+                    <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/10">
                         Question {currentQuestionIndex + 1} of {quizData.length}
                     </span>
                     <div className="flex gap-1">
                         {quizData.map((_, i) => (
-                            <div key={i} className={`h-1.5 w-6 rounded-full transition-all ${i === currentQuestionIndex ? "bg-primary w-10" : i < currentQuestionIndex ? "bg-primary/40" : "bg-muted"}`} />
+                            <div key={i} className={`h-1 w-4 md:h-1.5 md:w-6 rounded-full transition-all ${i === currentQuestionIndex ? "bg-primary w-8 md:w-10" : i < currentQuestionIndex ? "bg-primary/40" : "bg-muted"}`} />
                         ))}
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <h2 className="text-2xl font-bold leading-tight text-foreground">{currentQuestion.question}</h2>
+                <div className="space-y-4 md:space-y-6">
+                    <h2 className="text-xl md:text-2xl font-bold leading-tight text-foreground">{currentQuestion.question}</h2>
 
-                    <div className="grid gap-3">
+                    <div className="grid gap-2 md:gap-3">
                         {currentQuestion.options.map((option, i) => {
                             const letter = getOptionLetter(i)
                             const isSelected = selectedAnswer === letter
@@ -146,9 +146,9 @@ export default function FinalQuizOverlay({
                                     key={i}
                                     onClick={() => handleAnswer(letter)}
                                     disabled={showExplanation}
-                                    className={`w-full p-5 rounded-2xl text-left text-sm font-semibold transition-all border-2 flex items-center gap-4 ${stateClass}`}
+                                    className={`w-full p-4 md:p-5 rounded-2xl text-left text-xs md:text-sm font-semibold transition-all border-2 flex items-center gap-3 md:gap-4 ${stateClass}`}
                                 >
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs border-2 shrink-0 ${isSelected ? "border-current bg-current/10" : "border-border"}`}>
+                                    <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center text-[10px] md:text-xs border-2 shrink-0 ${isSelected ? "border-current bg-current/10" : "border-border"}`}>
                                         {letter}
                                     </div>
                                     <span className="flex-1">{option}</span>
@@ -161,12 +161,12 @@ export default function FinalQuizOverlay({
                 </div>
 
                 {showExplanation && (
-                    <div className="bg-muted/30 p-6 rounded-[2rem] border border-border/50 animate-in slide-in-from-top-4 duration-500">
-                        <p className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Explanation</p>
-                        <p className="text-sm leading-relaxed text-foreground/80">{currentQuestion.explanation}</p>
+                    <div className="bg-muted/30 p-4 md:p-6 rounded-[2rem] border border-border/50 animate-in slide-in-from-top-4 duration-500">
+                        <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-primary mb-2">Explanation</p>
+                        <p className="text-xs md:text-sm leading-relaxed text-foreground/80">{currentQuestion.explanation}</p>
                         <Button
                             onClick={nextQuestion}
-                            className="mt-6 w-full h-12 rounded-xl font-bold gap-2"
+                            className="mt-4 md:mt-6 w-full h-10 md:h-12 rounded-xl font-bold gap-2 text-sm md:text-base"
                         >
                             {currentQuestionIndex === quizData.length - 1 ? "See Results" : "Next Question"}
                             <ChevronRight className="w-4 h-4" />

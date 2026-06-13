@@ -102,7 +102,7 @@ export default function BlocEditor({
       <div className={`relative ${className}`}>
         <RichTextPlugin
           contentEditable={
-            <ContentEditable className="min-h-[44px] max-h-[300px] outline-none text-sm py-2 px-1 overflow-y-auto" />
+            <ContentEditable className="min-h-[44px] max-h-[150px] lg:max-h-[300px] outline-none text-sm py-2 px-1 overflow-y-auto" />
           }
           placeholder={
             <div className="absolute top-2 left-1 text-muted-foreground pointer-events-none text-sm opacity-50">

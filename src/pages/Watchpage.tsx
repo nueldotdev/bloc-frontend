@@ -10,6 +10,7 @@ import InteractiveSidebar, {
 } from "@/components/sidebar/InteractiveSidebar";
 import QuizOverlay from "@/components/video/QuizOverlay";
 import FinalQuizOverlay from "@/components/video/FinalQuizOverlay";
+import MobileNav from "@/components/video/MobileNav";
 import api from "@/lib/api";
 import type { API_Response } from "@/lib/types";
 import { useAuth } from "@/components/auth-provider";
@@ -42,10 +43,30 @@ export default function Watchpage() {
   // const isInitialLoad = useRef(true)
   const { user, profile } = useAuth();
 
+  // Responsive State
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // UI State
   const [activePanel, setActivePanel] = useState<
     "chat" | "notes" | "queue" | "topics" | "sessions" | "transcript" | null
-  >(null);
+  >(() => {
+    // Default to 'chat' on mobile to ensure space is used
+    if (window.innerWidth < 1024) return "chat";
+    return null;
+  });
+
+  useEffect(() => {
+    if (isMobile && !activePanel) {
+      setActivePanel("chat");
+    }
+  }, [isMobile, activePanel]);
+
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [isFinalQuizActive, setIsFinalQuizActive] = useState(false);
   const [finalQuizData, setFinalQuizData] = useState<any[]>([]);
@@ -893,9 +914,72 @@ export default function Watchpage() {
   const currentVideoData = videoId ? videoDataMap[videoId] : null;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
+    <div className="flex flex-col lg:flex-row h-screen w-screen overflow-hidden bg-background text-foreground font-sans relative">
+      {/* Full-screen Overlays (Quizzes, Notifications) */}
+      <div className="fixed inset-0 pointer-events-none z-100 flex flex-col items-center justify-center">
+        <div className="w-full h-full relative flex items-center justify-center">
+          {isQuizActive && (
+            <div className="pointer-events-auto absolute inset-0">
+              <QuizOverlay 
+                onCorrect={handleQuizCorrect} 
+                videoId={videoId || ""} 
+                videoTranscript={videoTranscript} 
+                currentTime={currentTime}
+              />
+            </div>
+          )}
+          {isFinalQuizActive && (
+            <div className="pointer-events-auto absolute inset-0">
+              <FinalQuizOverlay
+                quizData={finalQuizData}
+                onClose={() => {
+                  setIsFinalQuizActive(false);
+                  handleNextVideo();
+                }}
+                onReplay={handleReplay}
+              />
+            </div>
+          )}
+
+          {isGeneratingFinalQuiz && (
+            <div className="absolute inset-0 z-100 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500 pointer-events-auto">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6" />
+              <h3 className="text-xl font-bold">
+                Generating Final Assessment...
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                Gemini is analyzing your session to create a custom quiz.
+              </p>
+            </div>
+          )}
+
+          {notification &&
+            !isQuizActive &&
+            !isFinalQuizActive &&
+            !isGeneratingFinalQuiz && (
+              <div className="absolute top-8 z-60 bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl shadow-2xl animate-in slide-in-from-top-4 fade-in duration-500 pointer-events-auto">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <p className="text-sm font-medium text-white/90">
+                    {notification}
+                  </p>
+                </div>
+              </div>
+            )}
+        </div>
+      </div>
+
       {/* Main Video Area */}
-      <div className="flex-1 relative bg-black/95 flex flex-col items-center">
+      <div className={`relative bg-black/95 flex flex-col items-center ${isMobile ? 'w-full aspect-video shrink-0' : 'flex-1 h-full'}`}>
+        {isMobile && (
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="absolute top-4 left-4 z-50 p-2 bg-black/20 backdrop-blur-md rounded-full text-white/80 hover:bg-black/60 hover:text-white transition-all shadow-xl border border-white/10"
+            title="Back to Dashboard"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+        )}
         {videoId || playlistId ? (
           <Player
             ref={playerRef}
@@ -913,61 +997,33 @@ export default function Watchpage() {
             <p>No video or playlist provided.</p>
           </div>
         )}
-
-        {isQuizActive && (
-          <QuizOverlay 
-            onCorrect={handleQuizCorrect} 
-            videoId={videoId || ""} 
-            videoTranscript={videoTranscript} 
-            currentTime={currentTime}
-          />
-        )}
-        {isFinalQuizActive && (
-          <FinalQuizOverlay
-            quizData={finalQuizData}
-            onClose={() => {
-              setIsFinalQuizActive(false);
-              handleNextVideo();
-            }}
-            onReplay={handleReplay}
-          />
-        )}
-
-        {isGeneratingFinalQuiz && (
-          <div className="absolute inset-0 z-100 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6" />
-            <h3 className="text-xl font-bold">
-              Generating Final Assessment...
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              Gemini is analyzing your session to create a custom quiz.
-            </p>
-          </div>
-        )}
-
-        {notification &&
-          !isQuizActive &&
-          !isFinalQuizActive &&
-          !isGeneratingFinalQuiz && (
-            <div className="absolute top-8 z-60 bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl shadow-2xl animate-in slide-in-from-top-4 fade-in duration-500">
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                <p className="text-sm font-medium text-white/90">
-                  {notification}
-                </p>
-              </div>
-            </div>
-          )}
       </div>
 
+      {/* Mobile Nav Bar */}
+      {isMobile && (
+        <MobileNav 
+          activePanel={activePanel}
+          setActivePanel={setActivePanel}
+          isSaved={libraryStatus.isSaved}
+          onToggleLibrary={handleToggleLibrary}
+          onNavigate={navigate}
+        />
+      )}
+
       {/* Sidebar Region */}
-      <div className="flex h-full bg-card">
+      <div className={isMobile 
+        ? `flex-1 flex flex-col overflow-hidden bg-card`
+        : `flex h-full bg-card`
+      }>
         <div
-          className={`transition-all duration-300 ease-in-out overflow-hidden flex ${
-            activePanel ? "w-[400px] border-l border-border" : "w-0"
-          }`}
+          className={isMobile 
+            ? "flex-1 flex flex-col overflow-hidden"
+            : `transition-all duration-300 ease-in-out overflow-hidden flex ${
+                activePanel ? "w-[400px] border-l border-border" : "w-0"
+              }`
+          }
         >
-          <div className="w-[400px] min-w-[400px] h-full flex flex-col pt-4">
+          <div className={isMobile ? "flex-1 flex flex-col overflow-hidden" : "w-[400px] min-w-[400px] h-full flex flex-col pt-4"}>
             <InteractiveSidebar
               activePanel={activePanel}
               currentTime={currentTime}
@@ -997,166 +1053,21 @@ export default function Watchpage() {
               videoTranscript={videoTranscript}
               onTranscriptUpdate={setVideoTranscript}
               isPreview={searchParams.get("preview") === "true"}
+              isMobile={isMobile}
+              onClose={() => setActivePanel(null)}
             />
           </div>
         </div>
 
-        {/* Fixed Right Sidenav */}
-        <div className="w-16 h-full bg-sidebar flex flex-col items-center py-4 space-y-4 border-l border-border">
-          <button
-            onClick={() =>
-              setActivePanel(activePanel === "chat" ? null : "chat")
-            }
-            className={`p-3 rounded-xl transition-colors ${activePanel === "chat" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
-            title="AI Chat"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() =>
-              setActivePanel(activePanel === "notes" ? null : "notes")
-            }
-            className={`p-3 rounded-xl transition-colors ${activePanel === "notes" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
-            title="Notes"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
-              <path d="M9 7h1" />
-              <path d="M9 13h6" />
-              <path d="M9 17h6" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() =>
-              setActivePanel(activePanel === "topics" ? null : "topics")
-            }
-            className={`p-3 rounded-xl transition-colors ${activePanel === "topics" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
-            title="Topics"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() =>
-              setActivePanel(activePanel === "transcript" ? null : "transcript")
-            }
-            className={`p-3 rounded-xl transition-colors ${activePanel === "transcript" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
-            title="Transcript Settings"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-
-          {/* <button
-                        onClick={() => setActivePanel(activePanel === "sessions" ? null : "sessions")}
-                        className={`p-3 rounded-xl transition-colors ${activePanel === "sessions" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
-                        title="Sessions"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-                    </button> */}
-
-          <button
-            onClick={() =>
-              setActivePanel(activePanel === "queue" ? null : "queue")
-            }
-            className={`p-3 rounded-xl transition-colors ${activePanel === "queue" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
-            title="Queue"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M8 6h13" />
-              <path d="M8 12h13" />
-              <path d="M8 18h13" />
-              <path d="M3 6h.01" />
-              <path d="M3 12h.01" />
-              <path d="M3 18h.01" />
-            </svg>
-          </button>
-
-          <button
-            onClick={handleToggleLibrary}
-            className={`p-3 rounded-xl transition-all ${libraryStatus.isSaved ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
-            title={
-              libraryStatus.isSaved ? "Saved to Library" : "Save to Library"
-            }
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill={libraryStatus.isSaved ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-            </svg>
-          </button>
-
-          <div className="mt-auto pb-4 flex flex-col gap-4">
+        {/* Desktop Fixed Right Sidenav */}
+        {!isMobile && (
+          <div className="w-16 h-full bg-sidebar flex flex-col items-center py-4 space-y-4 border-l border-border">
             <button
-              onClick={() => navigate("/dashboard")}
-              className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
-              title="Dashboard"
+              onClick={() =>
+                setActivePanel(activePanel === "chat" ? null : "chat")
+              }
+              className={`p-3 rounded-xl transition-colors ${activePanel === "chat" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+              title="AI Chat"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1169,16 +1080,16 @@ export default function Watchpage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <rect width="7" height="9" x="3" y="3" rx="1" />
-                <rect width="7" height="5" x="14" y="3" rx="1" />
-                <rect width="7" height="9" x="14" y="12" rx="1" />
-                <rect width="7" height="5" x="3" y="16" rx="1" />
+                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
               </svg>
             </button>
+
             <button
-              onClick={() => navigate("/")}
-              className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
-              title="Back to Landing"
+              onClick={() =>
+                setActivePanel(activePanel === "notes" ? null : "notes")
+              }
+              className={`p-3 rounded-xl transition-colors ${activePanel === "notes" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+              title="Notes"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1191,12 +1102,153 @@ export default function Watchpage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
+                <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+                <path d="M9 7h1" />
+                <path d="M9 13h6" />
+                <path d="M9 17h6" />
               </svg>
             </button>
+
+            <button
+              onClick={() =>
+                setActivePanel(activePanel === "topics" ? null : "topics")
+              }
+              className={`p-3 rounded-xl transition-colors ${activePanel === "topics" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+              title="Topics"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6h16M4 12h16M4 18h7" />
+              </svg>
+            </button>
+
+            <button
+              onClick={() =>
+                setActivePanel(activePanel === "transcript" ? null : "transcript")
+              }
+              className={`p-3 rounded-xl transition-colors ${activePanel === "transcript" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+              title="Transcript Settings"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </button>
+
+            <button
+              onClick={() =>
+                setActivePanel(activePanel === "queue" ? null : "queue")
+              }
+              className={`p-3 rounded-xl transition-colors ${activePanel === "queue" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+              title="Queue"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M8 6h13" />
+                <path d="M8 12h13" />
+                <path d="M8 18h13" />
+                <path d="M3 6h.01" />
+                <path d="M3 12h.01" />
+                <path d="M3 18h.01" />
+              </svg>
+            </button>
+
+            <button
+              onClick={handleToggleLibrary}
+              className={`p-3 rounded-xl transition-all ${libraryStatus.isSaved ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
+              title={
+                libraryStatus.isSaved ? "Saved to Library" : "Save to Library"
+              }
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill={libraryStatus.isSaved ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+              </svg>
+            </button>
+
+            <div className="mt-auto pb-4 flex flex-col gap-4">
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
+                title="Dashboard"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect width="7" height="9" x="3" y="3" rx="1" />
+                  <rect width="7" height="5" x="14" y="3" rx="1" />
+                  <rect width="7" height="9" x="14" y="12" rx="1" />
+                  <rect width="7" height="5" x="3" y="16" rx="1" />
+                </svg>
+              </button>
+              <button
+                onClick={() => navigate("/")}
+                className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
+                title="Back to Landing"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

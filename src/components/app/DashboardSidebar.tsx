@@ -9,11 +9,17 @@ import {
   LogOut,
   Compass,
   Settings,
-  Notebook
+  Notebook,
+  X
 } from "lucide-react"
 import { ModeToggle } from "../mode-toggle"
 
-export default function DashboardSidebar() {
+interface DashboardSidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
   const { user, signOut, profile } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -44,20 +50,36 @@ export default function DashboardSidebar() {
         path: '/settings', 
         icon: Settings 
     },
-    // { 
-    //     name: 'Watch Mode', 
-    //     path: '/watch', 
-    //     icon: Video 
-    // },
   ]
 
   const isActive = (path: string) => location.pathname === path
 
+  const handleNavigate = (path: string) => {
+    navigate(path)
+    if (onClose) onClose()
+  }
+
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 border-r border-border bg-card/50 backdrop-blur-sm hidden lg:flex flex-col p-6 shadow-sm z-50">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <aside className={`fixed left-0 top-0 h-full w-64 border-r border-border bg-card/80 backdrop-blur-md transition-transform duration-300 z-50 flex flex-col p-6 shadow-sm lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="flex items-center justify-between mb-10">
           <Logo />
-          <ModeToggle />
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            {onClose && (
+              <Button variant="ghost" size="icon" className="lg:hidden" onClick={onClose}>
+                <X className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
         </div>
         
         <nav className="flex-1 space-y-2">
@@ -70,7 +92,7 @@ export default function DashboardSidebar() {
                     ? "bg-primary/10 text-primary hover:bg-primary/20" 
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
-                onClick={() => navigate(item.path)}
+                onClick={() => handleNavigate(item.path)}
             >
                 <item.icon className="w-4 h-4" />
                 {item.name}
@@ -98,5 +120,7 @@ export default function DashboardSidebar() {
             </Button>
         </div>
     </aside>
+    </>
   )
 }
+

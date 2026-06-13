@@ -13,9 +13,10 @@ import {
   Layers,
   Users
 } from "lucide-react"
-import DashboardSidebar from "@/components/app/DashboardSidebar"
+import DashboardLayout from "@/components/app/DashboardLayout"
 
 interface PathDetail {
+// ... (interface unchanged)
     id: string;
     name: string;
     description?: string;
@@ -105,7 +106,7 @@ export default function PathDetails() {
     if (playlistId) params.set("list", playlistId)
     params.set("preview", "true")
     if (path?.id) params.set("sessionId", path.id)
-    
+
     navigate(`/watch?${params.toString()}`)
   }
 
@@ -125,10 +126,8 @@ export default function PathDetails() {
   const isOwner = user?.id === path.user_id
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
-      <DashboardSidebar />
-
-      <main className="lg:ml-64 min-h-screen">
+    <DashboardLayout>
+      <div className="-mt-24 lg:-mt-10 lg:-ml-10 lg:-mr-10">
         {/* Hero Section */}
         <div className="relative h-[400px] w-full overflow-hidden">
             {path.cover_url ? (
@@ -137,7 +136,7 @@ export default function PathDetails() {
                 <div className="w-full h-full bg-linear-to-br from-primary/20 via-background to-background" />
             )}
             <div className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent" />
-            
+
             <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full max-w-7xl mx-auto">
                 <Button 
                     variant="ghost" 
@@ -147,7 +146,7 @@ export default function PathDetails() {
                     <ChevronLeft className="w-4 h-4" />
                     Back to Explore
                 </Button>
-                
+
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div className="space-y-4 max-w-2xl">
                         <div className="flex items-center gap-3">
@@ -174,7 +173,7 @@ export default function PathDetails() {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="flex gap-4">
                         <Button 
                             onClick={handleJoin}
@@ -271,7 +270,7 @@ export default function PathDetails() {
                 </div>
             </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }

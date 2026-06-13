@@ -4,7 +4,7 @@ import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import DashboardSidebar from "@/components/app/DashboardSidebar"
+import DashboardLayout from "@/components/app/DashboardLayout"
 import { uploadFile } from "@/lib/upload"
 
 export default function Settings() {
@@ -55,9 +55,7 @@ export default function Settings() {
     if (!profile) return <div className="min-h-screen flex items-center justify-center">Loading settings...</div>
 
     return (
-        <div className="min-h-screen bg-background font-sans text-foreground">
-            <DashboardSidebar />
-            <main className="lg:ml-64 p-6 md:p-10 max-w-7xl mx-auto min-h-screen">
+        <DashboardLayout>
                 <h1 className="text-4xl font-bold tracking-tight mb-8">Settings</h1>
                 
                 <div className="max-w-xl space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -141,7 +139,7 @@ export default function Settings() {
                         {saving ? "Saving..." : "Save Changes"}
                     </Button>
                 </div>
-            </main>
-        </div>
+        </DashboardLayout>
     )
 }
+

@@ -16,7 +16,7 @@ import {
   Lock
 } from "lucide-react"
 import { type Session } from "@/components/sidebar/InteractiveSidebar"
-import DashboardSidebar from "@/components/app/DashboardSidebar"
+import DashboardLayout from "@/components/app/DashboardLayout"
 import SessionModal from "@/components/app/SessionModal"
 import ContinueWatching, { type ContinueSessionData } from "@/components/app/ContinueWatching"
 
@@ -225,156 +225,151 @@ export default function Dashboard() {
   const [subGreeting] = useState(() => getSubGreeting())
 
   return (
-    <div className="min-h-screen bg-background font-sans selection:bg-primary/10 text-foreground">
-      <DashboardSidebar />
+    <DashboardLayout>
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight mb-1 text-foreground">{getGreeting()}, {displayName}</h1>
+          <p className="text-muted-foreground text-sm font-medium opacity-80">{subGreeting}</p>
+        </div>
 
-      {/* Main Content */}
-      <main className="lg:ml-64 p-6 md:p-10 max-w-7xl mx-auto min-h-screen">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight mb-1 text-foreground">{getGreeting()}, {displayName}</h1>
-            <p className="text-muted-foreground text-sm font-medium opacity-80">{subGreeting}</p>
-          </div>
+        <form onSubmit={handleStartLearning} className="relative w-full max-w-md group">
+          <Input
+            placeholder="Quick Start: Paste YouTube URL..."
+            className="pl-12 h-14 rounded-2xl border-2 focus:ring-4 focus:ring-primary/10 transition-all bg-card shadow-sm border-border/60"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Button type="submit" size="sm" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl h-10 px-4 font-bold shadow-md">
+            Start
+          </Button>
+        </form>
+      </header>
 
-          <form onSubmit={handleStartLearning} className="relative w-full max-w-md group">
-            <Input
-              placeholder="Quick Start: Paste YouTube URL..."
-              className="pl-12 h-14 rounded-2xl border-2 focus:ring-4 focus:ring-primary/10 transition-all bg-card shadow-sm border-border/60"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-            <Button type="submit" size="sm" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl h-10 px-4 font-bold shadow-md">
-              Start
-            </Button>
-          </form>
-        </header>
-
-        {/* Create Session Area */}
-        <section className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-          <div className="bg-primary/5 border border-primary/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm">
-            <div className="max-w-md">
-              <h2 className="text-2xl font-bold mb-2 text-foreground flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20">
-                  <Plus className="w-6 h-6" />
-                </div>
-                Your Learning Space
-              </h2>
-              <p className="text-sm text-muted-foreground font-medium opacity-80">Organize your study resources, AI notes, and progress in dedicated sessions.</p>
-            </div>
-            <Button onClick={openCreateModal} size="lg" className="h-14 px-10 rounded-2xl font-bold gap-3 shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95 text-lg">
-              <Plus className="w-6 h-6" />
-              New Session
-            </Button>
-          </div>
-        </section>
-
-        {/* Sessions Grid */}
-        <section className="animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-bold flex items-center gap-3 text-foreground">
-              Recent Sessions
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2.5 py-1 rounded-full bg-muted border border-border shadow-sm">
-                {sessions.length}
-              </span>
-            </h2>
-            <Button variant="ghost" className="text-primary text-sm font-bold hover:bg-primary/10 rounded-xl px-4 transition-all">View All</Button>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-48 rounded-[2rem] bg-muted/50 animate-pulse border border-border/40" />
-              ))}
-            </div>
-          ) : sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center bg-muted/10 rounded-[3rem] border border-dashed border-border/60">
-              <div className="w-20 h-20 rounded-[2rem] bg-background flex items-center justify-center mb-6 shadow-sm border border-border/40">
-                <BookOpen className="w-10 h-10 text-muted-foreground/40" />
+      {/* Create Session Area */}
+      <section className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+        <div className="bg-primary/5 border border-primary/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm">
+          <div className="max-w-md">
+            <h2 className="text-2xl font-bold mb-2 text-foreground flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20">
+                <Plus className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-xl mb-2 text-foreground">No sessions found</h3>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto font-medium">Create your first session above to start organizing your learning journey.</p>
+              Your Learning Space
+            </h2>
+            <p className="text-sm text-muted-foreground font-medium opacity-80">Organize your study resources, AI notes, and progress in dedicated sessions.</p>
+          </div>
+          <Button onClick={openCreateModal} size="lg" className="h-14 px-10 rounded-2xl font-bold gap-3 shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95 text-lg">
+            <Plus className="w-6 h-6" />
+            New Session
+          </Button>
+        </div>
+      </section>
+
+      {/* Sessions Grid */}
+      <section className="animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-xl font-bold flex items-center gap-3 text-foreground">
+            Recent Sessions
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2.5 py-1 rounded-full bg-muted border border-border shadow-sm">
+              {sessions.length}
+            </span>
+          </h2>
+          <Button variant="ghost" className="text-primary text-sm font-bold hover:bg-primary/10 rounded-xl px-4 transition-all">View All</Button>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-48 rounded-[2rem] bg-muted/50 animate-pulse border border-border/40" />
+            ))}
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center bg-muted/10 rounded-[3rem] border border-dashed border-border/60">
+            <div className="w-20 h-20 rounded-[2rem] bg-background flex items-center justify-center mb-6 shadow-sm border border-border/40">
+              <BookOpen className="w-10 h-10 text-muted-foreground/40" />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  onClick={() => jumpToSession(session)}
-                  className="group relative border border-border/60 rounded-[2rem] p-7 transition-all cursor-pointer hover:shadow-md hover:shadow-primary/5 hover:border-primary/20 flex flex-col min-h-[220px] overflow-hidden"
-                >
-                  {(session as any).cover_url ? (
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                      style={{ backgroundImage: `url(${(session as any).cover_url})` }}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-card" />
-                  )}
-                  <div className={`absolute inset-0 transition-all ${(session as any).cover_url ? 'bg-background/40 group-hover:bg-background/50' : ''}`} />
+            <h3 className="font-bold text-xl mb-2 text-foreground">No sessions found</h3>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto font-medium">Create your first session above to start organizing your learning journey.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                onClick={() => jumpToSession(session)}
+                className="group relative border border-border/60 rounded-[2rem] p-7 transition-all cursor-pointer hover:shadow-md hover:shadow-primary/5 hover:border-primary/20 flex flex-col min-h-[220px] overflow-hidden"
+              >
+                {(session as any).cover_url ? (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+                    style={{ backgroundImage: `url(${(session as any).cover_url})` }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-card" />
+                )}
+                <div className={`absolute inset-0 transition-all ${(session as any).cover_url ? 'bg-background/40 group-hover:bg-background/50' : ''}`} />
 
-                  <div className="relative z-10 flex flex-col h-full">
-                    <div className="flex justify-between items-start mb-8">
-                      <div className="p-3.5 bg-primary/10 rounded-2xl text-primary group-hover:scale-110 group-hover:bg-primary/60 group-hover:text-primary-foreground transition-all duration-300 shadow-sm shadow-primary/5 border border-primary/10">
-                        <Clock className="w-6 h-6" />
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={`h-9 w-9 rounded-xl shadow-sm border border-border/40 transition-all ${(session as any).is_public ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
-                          title={(session as any).is_public ? "Publicly Shared" : "Private"}
-                          onClick={async (e) => {
-                            e.stopPropagation()
-                            try {
-                              const res = await api.put<{ data: any }>(`sessions/${session.id}`, { isPublic: !(session as any).is_public })
-                              setSessions(prev => prev.map(s => s.id === session.id ? res.data : s))
-                            } catch (error) {
-                              console.error("Failed to toggle privacy", error)
-                            }
-                          }}
-                        >
-                          {(session as any).is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-primary hover:bg-background shadow-sm border border-border/40 transition-all"
-                          onClick={(e) => openEditModal(session, e)}
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shadow-sm border border-border/40 transition-all"
-                          onClick={(e) => handleDeleteSession(session.id, e)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="flex justify-between items-start mb-8">
+                    <div className="p-3.5 bg-primary/10 rounded-2xl text-primary group-hover:scale-110 group-hover:bg-primary/60 group-hover:text-primary-foreground transition-all duration-300 shadow-sm shadow-primary/5 border border-primary/10">
+                      <Clock className="w-6 h-6" />
                     </div>
-
-                    <div className="flex-1">
-                      <h3 className="font-bold text-xl mb-2 group-hover:text-primary transition-colors truncate pr-2 text-foreground">
-                        {session.name}
-                      </h3>
-                      <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 opacity-80 text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                        {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-
-                    <div className="mt-6 flex items-center text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-3 group-hover:translate-x-0">
-                      OPEN WORKSPACE <ChevronRight className="w-3.5 h-3.5 ml-1.5" />
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-9 w-9 rounded-xl shadow-sm border border-border/40 transition-all ${(session as any).is_public ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+                        title={(session as any).is_public ? "Publicly Shared" : "Private"}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          try {
+                            const res = await api.put<{ data: any }>(`sessions/${session.id}`, { isPublic: !(session as any).is_public })
+                            setSessions(prev => prev.map(s => s.id === session.id ? res.data : s))
+                          } catch (error) {
+                            console.error("Failed to toggle privacy", error)
+                          }
+                        }}
+                      >
+                        {(session as any).is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl text-muted-foreground hover:text-primary hover:bg-background shadow-sm border border-border/40 transition-all"
+                        onClick={(e) => openEditModal(session, e)}
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shadow-sm border border-border/40 transition-all"
+                        onClick={(e) => handleDeleteSession(session.id, e)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
+
+                  <div className="flex-1">
+                    <h3 className="font-bold text-xl mb-2 group-hover:text-primary transition-colors truncate pr-2 text-foreground">
+                      {session.name}
+                    </h3>
+                    <div className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 opacity-80 text-muted-foreground">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                      {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex items-center text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-3 group-hover:translate-x-0">
+                    OPEN WORKSPACE <ChevronRight className="w-3.5 h-3.5 ml-1.5" />
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {isModalOpen && (
         <SessionModal
@@ -393,6 +388,6 @@ export default function Dashboard() {
           onCancel={() => setDismissedContinue(true)}
         />
       )}
-    </div>
+    </DashboardLayout>
   )
 }
