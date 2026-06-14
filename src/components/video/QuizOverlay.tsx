@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 import { useAuth } from "@/components/auth-provider"
@@ -85,7 +86,7 @@ export default function QuizOverlay({
         loadQuestion()
         
         return () => { isMounted = false; }
-    }, [videoId, videoTranscript]) // Remove currentTime and profile to prevent loops. videoTranscript and videoId change only on video switch.
+    }, [videoId, videoTranscript])
 
     const handleAnswer = () => {
         if (selectedOption === currentQuestion?.correctIndex) {
@@ -111,7 +112,7 @@ export default function QuizOverlay({
             <div className="max-w-md w-full bg-card border border-border p-6 md:p-8 rounded-3xl shadow-2xl space-y-6 md:y-8">
                 <div className="space-y-2 text-center">
                     <div className="inline-flex p-3 bg-primary/10 rounded-2xl text-primary mb-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                        <CheckCircle2 size={24} />
                     </div>
                     <h2 className="text-xl md:text-2xl font-bold tracking-tight">
                         {profile?.preferred_check_type === 'concept' ? 'AI Concept Check' : 'Sanity Check'}

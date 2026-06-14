@@ -132,6 +132,26 @@ export default function Settings() {
                                     <option value="concept">Concept Checks (AI-Generated)</option>
                                 </select>
                             </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-sm font-medium">AI Language Preference</label>
+                                <select 
+                                    className="w-full h-12 px-4 rounded-xl border-2 bg-background focus:border-primary transition-all outline-none"
+                                    value={profile?.preferred_language || 'English'}
+                                    onChange={(e) => setProfile({...profile, preferred_language: e.target.value})}
+                                >
+                                    <option value="English">English</option>
+                                    <option value="Spanish">Spanish</option>
+                                    <option value="French">French</option>
+                                    <option value="German">German</option>
+                                    <option value="Chinese">Chinese</option>
+                                    <option value="Japanese">Japanese</option>
+                                    <option value="Portuguese">Portuguese</option>
+                                    <option value="Hindi">Hindi</option>
+                                    <option value="Arabic">Arabic</option>
+                                    <option value="Russian">Russian</option>
+                                </select>
+                                <p className="text-[10px] text-muted-foreground ml-1">The AI will chat and generate quizzes in this language.</p>
+                            </div>
                         </div>
                     </section>
 

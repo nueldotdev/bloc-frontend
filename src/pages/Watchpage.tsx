@@ -1,5 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { 
+  MessageSquare, 
+  FileText, 
+  List, 
+  Captions, 
+  History, 
+  Bookmark,
+  LayoutDashboard,
+  Home,
+  ChevronLeft
+} from "lucide-react";
 import Player from "@/components/video/Player";
 import type { PlayerHandle } from "@/components/video/Player";
 import InteractiveSidebar, {
@@ -74,6 +85,7 @@ export default function Watchpage() {
   const [notification, setNotification] = useState<string | null>(null);
   const [isGeneratingTopics, setIsGeneratingTopics] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   // Core Session State
   const [queue, setQueue] = useState<QueueItem[]>(() => {
@@ -970,14 +982,14 @@ export default function Watchpage() {
       </div>
 
       {/* Main Video Area */}
-      <div className={`relative bg-black/95 flex flex-col items-center ${isMobile ? 'w-full aspect-video shrink-0' : 'flex-1 h-full'}`}>
+      <div className={`relative bg-black/95 flex flex-col items-center ${isMobile ? (isInputFocused ? 'hidden' : 'w-full aspect-video shrink-0') : 'flex-1 h-full'}`}>
         {isMobile && (
           <button
             onClick={() => navigate("/dashboard")}
             className="absolute top-4 left-4 z-50 p-2 bg-black/20 backdrop-blur-md rounded-full text-white/80 hover:bg-black/60 hover:text-white transition-all shadow-xl border border-white/10"
             title="Back to Dashboard"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            <ChevronLeft size={20} />
           </button>
         )}
         {videoId || playlistId ? (
@@ -1000,7 +1012,7 @@ export default function Watchpage() {
       </div>
 
       {/* Mobile Nav Bar */}
-      {isMobile && (
+      {isMobile && !isInputFocused && (
         <MobileNav 
           activePanel={activePanel}
           setActivePanel={setActivePanel}
@@ -1055,6 +1067,9 @@ export default function Watchpage() {
               isPreview={searchParams.get("preview") === "true"}
               isMobile={isMobile}
               onClose={() => setActivePanel(null)}
+              isLocked={isQuizActive || isFinalQuizActive || isGeneratingFinalQuiz}
+              onFocus={() => isMobile && setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
             />
           </div>
         </div>
@@ -1069,19 +1084,7 @@ export default function Watchpage() {
               className={`p-3 rounded-xl transition-colors ${activePanel === "chat" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
               title="AI Chat"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-              </svg>
+              <MessageSquare size={24} />
             </button>
 
             <button
@@ -1091,23 +1094,7 @@ export default function Watchpage() {
               className={`p-3 rounded-xl transition-colors ${activePanel === "notes" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
               title="Notes"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-                <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
-                <path d="M9 7h1" />
-                <path d="M9 13h6" />
-                <path d="M9 17h6" />
-              </svg>
+              <FileText size={24} />
             </button>
 
             <button
@@ -1117,19 +1104,7 @@ export default function Watchpage() {
               className={`p-3 rounded-xl transition-colors ${activePanel === "topics" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
               title="Topics"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 6h16M4 12h16M4 18h7" />
-              </svg>
+              <List size={24} />
             </button>
 
             <button
@@ -1139,19 +1114,7 @@ export default function Watchpage() {
               className={`p-3 rounded-xl transition-colors ${activePanel === "transcript" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
               title="Transcript Settings"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+              <Captions size={24} />
             </button>
 
             <button
@@ -1161,24 +1124,7 @@ export default function Watchpage() {
               className={`p-3 rounded-xl transition-colors ${activePanel === "queue" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-sidebar-foreground"}`}
               title="Queue"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M8 6h13" />
-                <path d="M8 12h13" />
-                <path d="M8 18h13" />
-                <path d="M3 6h.01" />
-                <path d="M3 12h.01" />
-                <path d="M3 18h.01" />
-              </svg>
+              <History size={24} />
             </button>
 
             <button
@@ -1188,19 +1134,7 @@ export default function Watchpage() {
                 libraryStatus.isSaved ? "Saved to Library" : "Save to Library"
               }
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill={libraryStatus.isSaved ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-              </svg>
+              <Bookmark size={24} fill={libraryStatus.isSaved ? "currentColor" : "none"} />
             </button>
 
             <div className="mt-auto pb-4 flex flex-col gap-4">
@@ -1209,42 +1143,14 @@ export default function Watchpage() {
                 className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
                 title="Dashboard"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect width="7" height="9" x="3" y="3" rx="1" />
-                  <rect width="7" height="5" x="14" y="3" rx="1" />
-                  <rect width="7" height="9" x="14" y="12" rx="1" />
-                  <rect width="7" height="5" x="3" y="16" rx="1" />
-                </svg>
+                <LayoutDashboard size={24} />
               </button>
               <button
                 onClick={() => navigate("/")}
                 className="p-3 rounded-xl hover:bg-accent text-sidebar-foreground"
                 title="Back to Landing"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
+                <Home size={24} />
               </button>
             </div>
           </div>

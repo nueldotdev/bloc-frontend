@@ -3,7 +3,6 @@ import Logo from "@/components/app/Logo"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth-provider"
 import { 
-  // Video, 
   BookOpen,
   LayoutDashboard,
   LogOut,
@@ -123,4 +122,3 @@ export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarPr
     </>
   )
 }
-

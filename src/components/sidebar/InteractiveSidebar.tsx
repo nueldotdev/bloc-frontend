@@ -2,12 +2,22 @@ import { useState, useRef, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
-import {
+import { 
 	Trash2,
 	Edit3,
 	Check,
 	Play,
-	Plus
+	Plus,
+	Lock,
+	MessageSquare,
+	FileText,
+	List,
+	Captions,
+	Folder,
+	History,
+	Send,
+	Bot,
+	ChevronRight
 } from "lucide-react"
 import { Button } from "../ui/button"
 import { useAuth } from "../auth-provider"
@@ -75,7 +85,10 @@ export default function InteractiveSidebar({
 	onTranscriptUpdate,
 	isPreview = false,
 	isMobile = false,
-	onClose
+	onClose,
+	isLocked = false,
+	onFocus,
+	onBlur
 }: {
 	activePanel: "chat" | "notes" | "queue" | "topics" | "sessions" | "transcript" | null;
 
@@ -107,7 +120,10 @@ export default function InteractiveSidebar({
 	onTranscriptUpdate?: (text: string) => void,
 	isPreview?: boolean,
 	isMobile?: boolean,
-	onClose?: () => void
+	onClose?: () => void,
+	isLocked?: boolean,
+	onFocus?: () => void,
+	onBlur?: () => void
 }) {
 	const { profile } = useAuth()
 	const [inputText, setInputText] = useState("")
@@ -168,9 +184,6 @@ export default function InteractiveSidebar({
 	const startEditingNote = (note: Note) => {
 		setEditingNoteId(note.id)
 		setInputText(note.text)
-		// We can't easily "force" Lexical to update from outside without a prop 
-		// but since we're replacing the whole input experience, let's assume 
-		// the user wants to see the text in the editor.
 	}
 
 	const handleSendChat = (e?: React.FormEvent) => {
@@ -212,6 +225,27 @@ export default function InteractiveSidebar({
 		setIsModalOpen(true)
 	}
 
+	const topicPromptMap: Record<string, string> = {
+		"English": "Tell me more about \"{topic}\" from this video.",
+		"Spanish": "Dime más sobre \"{topic}\" de este video.",
+		"French": "Parle-moi plus de \"{topic}\" de cette vidéo.",
+		"German": "Erzähl mir mehr über \"{topic}\" aus diesem Video.",
+		"Chinese": "请告诉我更多关于这个视频中 \"{topic}\" 的内容。",
+		"Japanese": "このビデオの「{topic}」について詳しく教えてください。",
+		"Portuguese": "Conte-me mais sobre \"{topic}\" deste vídeo.",
+		"Hindi": "मुझे इस वीडियो के \"{topic}\" के बारे में और बताएं।",
+		"Arabic": "أخبرني المزيد عن \"{topic}\" من هذا الفيديو.",
+		"Russian": "Расскажите мне больше о «{topic}» из этого видео."
+	};
+
+	const handleTopicClick = (topic: string) => {
+		if (isPreview) return;
+		const lang = profile?.preferred_language || "English";
+		const template = topicPromptMap[lang] || topicPromptMap["English"];
+		const message = template.replace("{topic}", topic);
+		onSendMessage(message);
+	};
+
 	const handleAddQueue = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (!queueInput.trim() || isFetching) return
@@ -237,12 +271,23 @@ export default function InteractiveSidebar({
 
 	if (activePanel === "chat") {
 		return (
-			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 relative ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{isLocked && (
+					<div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 space-y-4 rounded-2xl">
+						<div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+							<Lock className="w-6 h-6" />
+						</div>
+						<div className="space-y-1">
+							<h3 className="font-bold text-lg text-foreground">Focus Mode Active</h3>
+							<p className="text-xs text-muted-foreground max-w-[200px] mx-auto">Complete the check-in to unlock your AI Assistant.</p>
+						</div>
+					</div>
+				)}
 				{!isMobile && (
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
-							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>
+							<MessageSquare size={20} />
 						</div>
 						AI Assistant
 					</h2>
@@ -279,7 +324,7 @@ export default function InteractiveSidebar({
 									)
 								) : (
 									<div className="h-full w-full flex items-center justify-center bg-accent text-accent-foreground">
-										<svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "14" : "16"} height={isMobile ? "14" : "16"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+										<Bot size={isMobile ? 14 : 16} />
 									</div>
 								)}
 							</div>
@@ -355,6 +400,8 @@ export default function InteractiveSidebar({
 					<BlocEditor 
 						value={chatInput}
 						onChange={setChatInput}
+						onFocus={onFocus}
+						onBlur={onBlur}
 						placeholder="Ask a question (type / for commands)..."
 						clearSignal={chatClearSignal}
 					/>
@@ -366,7 +413,7 @@ export default function InteractiveSidebar({
 							onClick={() => handleSendChat()}
 							className={`inline-flex items-center justify-center rounded-xl font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm ${isMobile ? 'h-7 w-7' : 'h-8 w-8'}`}
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "12" : "14"} height={isMobile ? "12" : "14"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+							<Send size={isMobile ? 12 : 14} />
 						</button>
 					</div>
 				</div>
@@ -377,12 +424,23 @@ export default function InteractiveSidebar({
 
 	if (activePanel === "notes") {
 		return (
-			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+			<div className={`flex flex-col h-full w-full animate-in fade-in duration-500 relative ${isMobile ? 'px-3 pb-3' : 'px-6 pb-6'}`}>
+				{isLocked && (
+					<div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 space-y-4 rounded-2xl">
+						<div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+							<Lock className="w-6 h-6" />
+						</div>
+						<div className="space-y-1">
+							<h3 className="font-bold text-lg text-foreground">Focus Mode Active</h3>
+							<p className="text-xs text-muted-foreground max-w-[200px] mx-auto">Complete the assessment to unlock your study notes.</p>
+						</div>
+					</div>
+				)}
 				{!isMobile && (
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
-							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" /><path d="M9 7h1" /><path d="M9 13h6" /><path d="M9 17h6" /></svg>
+							<FileText size={20} />
 						</div>
 						Study Notes
 					</h2>
@@ -392,7 +450,7 @@ export default function InteractiveSidebar({
 				<div className={`flex-1 overflow-y-auto pr-1 ${isMobile ? 'space-y-3 mb-3 mt-2' : 'space-y-3 mb-4'}`}>
 					{notes.length === 0 ? (
 						<div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-							<svg xmlns="http://www.w3.org/2000/svg" width={isMobile ? "32" : "48"} height={isMobile ? "32" : "48"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-4"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z" /><path d="M15 3v6h6" /><path d="M9 18h6" /></svg>
+							<FileText size={isMobile ? 32 : 48} className="mb-4" />
 							<p className="text-sm">No notes yet. Type below to capture a moment!</p>
 						</div>
 					) : (
@@ -461,6 +519,8 @@ export default function InteractiveSidebar({
 					<BlocEditor 
 						value={inputText}
 						onChange={setInputText}
+						onFocus={onFocus}
+						onBlur={onBlur}
 						placeholder="Add a note (type / for commands)..."
 						clearSignal={notesClearSignal}
 					/>
@@ -489,7 +549,7 @@ export default function InteractiveSidebar({
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
-							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7" /></svg>
+							<List size={20} />
 						</div>
 						Video Topics
 					</h2>
@@ -511,14 +571,12 @@ export default function InteractiveSidebar({
 							<button
 								key={i}
 								disabled={isPreview}
-								onClick={() => {
-									if (!isPreview) onSendMessage(`Tell me more about "${topic}" from this video.`)
-								}}
+								onClick={() => handleTopicClick(topic)}
 								className={`w-full text-left rounded-xl border border-border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group disabled:opacity-50 disabled:cursor-not-allowed ${isMobile ? 'p-4' : 'p-4'}`}
 							>
 								<div className="flex items-center justify-between mb-1">
 									<span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-primary opacity-70">Topic {i + 1}</span>
-									{!isPreview && <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>}
+									{!isPreview && <ChevronRight className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" size={14} />}
 								</div>
 								<p className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold`}>{topic}</p>
 							</button>
@@ -537,7 +595,7 @@ export default function InteractiveSidebar({
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
-							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+							<Captions size={20} />
 						</div>
 						Video Transcript
 					</h2>
@@ -581,7 +639,7 @@ export default function InteractiveSidebar({
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
-							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
+							<Folder size={20} />
 						</div>
 						My Sessions
 					</h2>
@@ -608,17 +666,7 @@ export default function InteractiveSidebar({
 									</div>
 								) : (
 									<div className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} shrink-0 rounded-lg bg-muted flex items-center justify-center border border-border text-muted-foreground`}>
-										<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
-									</div>
-								)}
-								
-								{session.cover_url ? (
-									<div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden border border-border">
-										<img src={session.cover_url} alt="" className="h-full w-full object-cover" />
-									</div>
-								) : (
-									<div className="h-10 w-10 shrink-0 rounded-lg bg-muted flex items-center justify-center border border-border text-muted-foreground">
-										<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9l-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>
+										<Folder size={isMobile ? 18 : 18} />
 									</div>
 								)}
 								
@@ -674,7 +722,7 @@ export default function InteractiveSidebar({
 				<div className="flex items-center justify-between mb-6">
 					<h2 className="text-xl font-bold text-foreground flex items-center gap-3">
 						<div className="p-2 bg-primary/20 rounded-lg text-primary">
-							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" /></svg>
+							<History size={20} />
 						</div>
 						Up Next
 					</h2>
@@ -729,6 +777,8 @@ export default function InteractiveSidebar({
 					<input
 						value={queueInput}
 						onChange={(e) => setQueueInput(e.target.value)}
+						onFocus={onFocus}
+						onBlur={onBlur}
 						className={`${isMobile ? 'h-10' : 'h-12'} flex-1 rounded-xl border border-input bg-background px-4 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm disabled:opacity-50`}
 						placeholder={isFetching ? "Fetching title..." : "Paste YouTube URL..."}
 						disabled={isFetching}
