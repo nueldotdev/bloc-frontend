@@ -10,17 +10,11 @@ import {
 interface MobileNavProps {
   activePanel: string | null;
   setActivePanel: (panel: any) => void;
-  isSaved: boolean;
-  onToggleLibrary: () => void;
-  onNavigate: (path: string) => void;
 }
 
 const MobileNav: React.FC<MobileNavProps> = ({
   activePanel,
   setActivePanel,
-  isSaved,
-  onToggleLibrary,
-  onNavigate
 }) => {
   const navItems = [
     { id: 'chat', icon: MessageSquare, label: 'Chat' },

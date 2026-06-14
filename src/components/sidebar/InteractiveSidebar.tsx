@@ -85,7 +85,6 @@ export default function InteractiveSidebar({
 	onTranscriptUpdate,
 	isPreview = false,
 	isMobile = false,
-	onClose,
 	isLocked = false,
 	onFocus,
 	onBlur
@@ -120,7 +119,6 @@ export default function InteractiveSidebar({
 	onTranscriptUpdate?: (text: string) => void,
 	isPreview?: boolean,
 	isMobile?: boolean,
-	onClose?: () => void,
 	isLocked?: boolean,
 	onFocus?: () => void,
 	onBlur?: () => void
