@@ -3,7 +3,7 @@ import {
   MessageSquare,
   FileText,
   List,
-  Captions,
+  // Captions,
   History,
 } from 'lucide-react';
 
@@ -20,7 +20,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
     { id: 'chat', icon: MessageSquare, label: 'Chat' },
     { id: 'notes', icon: FileText, label: 'Notes' },
     { id: 'topics', icon: List, label: 'Topics' },
-    { id: 'transcript', icon: Captions, label: 'Transcript' },
+    // { id: 'transcript', icon: Captions, label: 'Transcript' },
     { id: 'queue', icon: History, label: 'Queue' },
   ];
 
