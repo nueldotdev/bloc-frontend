@@ -1016,9 +1016,6 @@ export default function Watchpage() {
         <MobileNav 
           activePanel={activePanel}
           setActivePanel={setActivePanel}
-          isSaved={libraryStatus.isSaved}
-          onToggleLibrary={handleToggleLibrary}
-          onNavigate={navigate}
         />
       )}
 
@@ -1066,7 +1063,6 @@ export default function Watchpage() {
               onTranscriptUpdate={setVideoTranscript}
               isPreview={searchParams.get("preview") === "true"}
               isMobile={isMobile}
-              onClose={() => setActivePanel(null)}
               isLocked={isQuizActive || isFinalQuizActive || isGeneratingFinalQuiz}
               onFocus={() => isMobile && setIsInputFocused(true)}
               onBlur={() => setIsInputFocused(false)}
