@@ -490,21 +490,11 @@ export default function Watchpage() {
 
   const handlePlaylistLoaded = useCallback(
     async (ids: string[]) => {
-      const newIds = ids.filter((id) => !queue.find((item) => item.id === id));
-      if (newIds.length === 0) return;
-      const newItems: QueueItem[] = newIds.map((id) => ({
-        id,
-        title: `Loading title (${id})...`,
-      }));
-      setQueue((prev) => [...prev, ...newItems]);
-      for (const item of newItems) {
-        const title = await fetchTitle(item.id);
-        setQueue((currentQueue) =>
-          currentQueue.map((q) => (q.id === item.id ? { ...q, title } : q)),
-        );
-      }
+      // We no longer automatically import entire playlists into the session queue
+      // to keep it focused on videos the user explicitly chose or added.
+      console.log("[Watchpage] Playlist detected but not auto-imported:", ids.length, "videos");
     },
-    [queue],
+    [],
   );
 
   const handleProgress = useCallback((time: number) => {
