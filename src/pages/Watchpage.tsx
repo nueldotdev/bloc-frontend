@@ -756,12 +756,19 @@ export default function Watchpage() {
             chats: [...(prev[videoId]?.chats || []), aiMsg],
           },
         }));
-      } catch (error) {
+      } catch (error: any) {
         console.error("Gemini Error:", error);
+        
+        let errorMessage = "Sorry, I encountered an error. Please make sure you are logged in correctly!";
+        
+        if (error.message?.includes("503") || error.message?.includes("demand")) {
+          errorMessage = "AI is currently under high demand and unavailable. Please try again in a moment!";
+        }
+
         const errorMsg: ChatMessage = {
           id: Date.now().toString(),
           role: "ai",
-          text: "Sorry, I encountered an error. Please make sure you are logged in correctly!",
+          text: errorMessage,
         };
         setVideoDataMap((prev) => ({
           ...prev,

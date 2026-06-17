@@ -111,14 +111,18 @@ export default function SlashCommandPlugin() {
   ];
 
   const executeCommand = useCallback((cmd: CommandItem) => {
-    editor.update(() => {
+      cmd.onSelect();
+      
+      // After selection, we need to remove the "/" trigger.
+      // We do this by modifying the selection to include the character before the current cursor.
+      editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
           selection.modify("extend", true, "character");
           selection.removeText();
         }
       });
-      cmd.onSelect();
+      
       closeMenu();
   }, [editor, closeMenu]);
 
@@ -157,6 +161,7 @@ export default function SlashCommandPlugin() {
           const parent = node.getParentOrThrow();
 
           if ($isHeadingNode(parent)) {
+            // If at the end of heading, insert paragraph below
             if (anchor.offset === node.getTextContentSize()) {
               event.preventDefault();
               editor.update(() => {
