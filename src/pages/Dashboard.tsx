@@ -97,11 +97,46 @@ export default function Dashboard() {
 
   const handleCreateSession = async (data: any) => {
     try {
+      let initialQueue: any[] = [];
+
+      if (data.initialUrl) {
+        const { videoId, playlistId } = parseYoutubeId(data.initialUrl)
+        
+        // If it's a playlist, fetch all videos from it
+        if (playlistId) {
+          try {
+            const playlistRes = await api.get<{ 
+              data: { videos: Array<{ id: string; title: string }> } 
+            }>(`playlists/videos?url=${encodeURIComponent(data.initialUrl)}`)
+            initialQueue = playlistRes.data.videos
+          } catch (error) {
+            console.warn("Failed to fetch playlist videos, will load from player instead", error)
+            // Fall back to letting the player handle it
+          }
+        }
+        
+        // If no playlist or playlist fetch failed, try to get the direct video
+        if (!playlistId || initialQueue.length === 0) {
+          let title = videoId || data.initialUrl;
+          try {
+            const response = await fetch(
+              `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
+            );
+            const oembedData = await response.json();
+            title = oembedData.title || videoId;
+          } catch (e) {}
+          if (videoId) {
+            initialQueue = [{ id: videoId, title }];
+          }
+        }
+      }
+
       const res = await api.post<{ data: Session }>("sessions", {
         name: data.name,
         initialUrl: data.initialUrl,
         coverUrl: data.coverUrl,
-        description: data.description
+        description: data.description,
+        queue: initialQueue
       })
       setSessions(prev => [res.data, ...prev])
     } catch (error) {

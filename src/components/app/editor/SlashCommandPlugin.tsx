@@ -50,36 +50,30 @@ export default function SlashCommandPlugin() {
       label: "Text",
       icon: <Type className="w-4 h-4" />,
       onSelect: () => {
-        editor.update(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            $setBlocksType(selection, () => $createParagraphNode());
-          }
-        });
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          $setBlocksType(selection, () => $createParagraphNode());
+        }
       },
     },
     {
       label: "Heading 1",
       icon: <Heading1 className="w-4 h-4" />,
       onSelect: () => {
-        editor.update(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            $setBlocksType(selection, () => $createHeadingNode("h1"));
-          }
-        });
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          $setBlocksType(selection, () => $createHeadingNode("h1"));
+        }
       },
     },
     {
       label: "Heading 2",
       icon: <Heading2 className="w-4 h-4" />,
       onSelect: () => {
-        editor.update(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            $setBlocksType(selection, () => $createHeadingNode("h2"));
-          }
-        });
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          $setBlocksType(selection, () => $createHeadingNode("h2"));
+        }
       },
     },
     {
@@ -100,29 +94,26 @@ export default function SlashCommandPlugin() {
         label: "Quote",
         icon: <Quote className="w-4 h-4" />,
         onSelect: () => {
-          editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              $setBlocksType(selection, () => $createQuoteNode());
-            }
-          });
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            $setBlocksType(selection, () => $createQuoteNode());
+          }
         },
     },
   ];
 
   const executeCommand = useCallback((cmd: CommandItem) => {
-      cmd.onSelect();
-      
-      // After selection, we need to remove the "/" trigger.
-      // We do this by modifying the selection to include the character before the current cursor.
       editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
+          // Remove the "/" trigger character
           selection.modify("extend", true, "character");
           selection.removeText();
+          
+          // Apply the command immediately in the same update
+          cmd.onSelect();
         }
       });
-      
       closeMenu();
   }, [editor, closeMenu]);
 
@@ -161,7 +152,6 @@ export default function SlashCommandPlugin() {
           const parent = node.getParentOrThrow();
 
           if ($isHeadingNode(parent)) {
-            // If at the end of heading, insert paragraph below
             if (anchor.offset === node.getTextContentSize()) {
               event.preventDefault();
               editor.update(() => {

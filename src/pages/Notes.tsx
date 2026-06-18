@@ -20,7 +20,6 @@ import {
 import DashboardLayout from "@/components/app/DashboardLayout"
 
 interface NoteWithContext {
-// ... (interface unchanged)
     id: string;
     text: string;
     timestamp: number;
@@ -31,6 +30,24 @@ interface NoteWithContext {
         name: string;
         queue: Array<{ id: string; title: string }>;
     };
+}
+
+const getNotePreview = (text: string, maxLength: number = 160) => {
+  const clean = text
+    .replace(/\$\$[\s\S]*?\$\$/g, '') // remove $$ math blocks
+    .replace(/\$[\s\S]*?\$/g, '')     // remove $ inline math
+    .replace(/#+\s+/g, '')            // remove headers
+    .replace(/[*_`~#]/g, '')          // remove formatting symbols
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // simplify markdown links
+    .replace(/^-\s+/gm, '')           // list dashes
+    .replace(/^\d+\.\s+/gm, '')       // list numbers
+    .replace(/>\s+/g, '')             // blockquotes
+    .replace(/\s+/g, ' ')             // collapse multiple whitespaces
+    .trim();
+
+  const final = clean || text.trim();
+  if (final.length <= maxLength) return final;
+  return final.slice(0, maxLength) + "...";
 }
 
 export default function Notes() {
@@ -201,14 +218,23 @@ export default function Notes() {
                                         </div>
                                         
                                         <div className={`transition-all duration-300 overflow-hidden ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-20 opacity-80'}`}>
-                                            <div className={`prose prose-sm prose-invert max-w-none text-muted-foreground text-sm leading-relaxed ${!isExpanded && 'line-clamp-2 italic'}`}>
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkMath]}
-                                                    rehypePlugins={[rehypeKatex]}
-                                                >
-                                                    {isExpanded ? note.text : `"${note.text}"`}
-                                                </ReactMarkdown>
-                                            </div>
+                                            {isExpanded ? (
+                                                <div className="prose prose-sm prose-invert max-w-none text-muted-foreground text-sm leading-relaxed">
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkMath]}
+                                                        rehypePlugins={[rehypeKatex]}
+                                                    >
+                                                        {note.text}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            ) : (
+                                                <p className="text-muted-foreground text-sm leading-relaxed italic">
+                                                    "{getNotePreview(note.text, 160)}"
+                                                    <span className="ml-2 text-xs text-primary not-italic font-bold group-hover:underline">
+                                                        Show more
+                                                    </span>
+                                                </p>
+                                            )}
                                         </div>
                                         
                                         <div className="flex items-center justify-between pt-2">

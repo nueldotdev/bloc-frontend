@@ -55,6 +55,24 @@ interface QueueItem {
 	title: string;
 }
 
+const getNotePreview = (text: string, maxLength: number = 100) => {
+	const clean = text
+		.replace(/\$\$[\s\S]*?\$\$/g, '') // remove $$ math blocks
+		.replace(/\$[\s\S]*?\$/g, '')     // remove $ inline math
+		.replace(/#+\s+/g, '')            // remove headers
+		.replace(/[*_`~#]/g, '')          // remove formatting symbols
+		.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // simplify markdown links
+		.replace(/^-\s+/gm, '')           // list dashes
+		.replace(/^\d+\.\s+/gm, '')       // list numbers
+		.replace(/>\s+/g, '')             // blockquotes
+		.replace(/\s+/g, ' ')             // collapse multiple whitespaces
+		.trim();
+
+	const final = clean || text.trim();
+	if (final.length <= maxLength) return final;
+	return final.slice(0, maxLength) + "...";
+}
+
 export default function InteractiveSidebar({
 	activePanel,
 	currentTime,
@@ -110,7 +128,7 @@ export default function InteractiveSidebar({
 	sessions?: Session[],
 	currentSessionId?: string,
 	onSwitchSession?: (id: string) => void,
-	onCreateSession?: (name: string, description?: string, coverUrl?: string) => void,
+	onCreateSession?: (name: string, description?: string, coverUrl?: string, initialUrl?: string) => void,
 	onUpdateSession?: (id: string, name: string, description?: string, coverUrl?: string) => void,
 	onDeleteSession?: (id: string) => void,
 	isGeneratingTopics?: boolean,
@@ -136,6 +154,19 @@ export default function InteractiveSidebar({
 	const [chatClearSignal, setChatClearSignal] = useState(false)
 	const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
 	const [editingChatId, setEditingChatId] = useState<string | null>(null)
+	const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
+
+	const toggleNoteExpand = (id: string) => {
+		setExpandedNotes(prev => {
+			const next = new Set(prev)
+			if (next.has(id)) {
+				next.delete(id)
+			} else {
+				next.add(id)
+			}
+			return next
+		})
+	}
 
 	// Auto-scroll to bottom of chat
 	useEffect(() => {
@@ -209,7 +240,7 @@ export default function InteractiveSidebar({
 		if (selectedSession && onUpdateSession) {
 			await onUpdateSession(selectedSession.id, data.name, data.description, data.coverUrl)
 		} else if (onCreateSession) {
-			await onCreateSession(data.name, data.description, data.coverUrl)
+			await onCreateSession(data.name, data.description, data.coverUrl, data.initialUrl)
 		}
 	}
 
@@ -492,13 +523,30 @@ export default function InteractiveSidebar({
 												)}
 											</div>
 										</div>
-										<div className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed text-foreground/90 overflow-x-auto">
-											<ReactMarkdown
-												remarkPlugins={[remarkMath]}
-												rehypePlugins={[rehypeKatex]}
-											>
-												{note.text}
-											</ReactMarkdown>
+										<div 
+											onClick={() => toggleNoteExpand(note.id)}
+											className="cursor-pointer select-none"
+										>
+											{expandedNotes.has(note.id) ? (
+												<div className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed text-foreground/90 overflow-x-auto">
+													<ReactMarkdown
+														remarkPlugins={[remarkMath]}
+														rehypePlugins={[rehypeKatex]}
+													>
+														{note.text}
+													</ReactMarkdown>
+													<div className="mt-2 text-[10px] text-primary font-bold hover:underline">
+														Show less
+													</div>
+												</div>
+											) : (
+												<div className="text-sm text-muted-foreground leading-relaxed italic pr-4">
+													"{getNotePreview(note.text)}"
+													<span className="ml-1 text-[10px] text-primary not-italic font-bold hover:underline inline-block">
+														Show more
+													</span>
+												</div>
+											)}
 										</div>
 									</>
 								)}

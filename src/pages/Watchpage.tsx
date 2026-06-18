@@ -199,6 +199,30 @@ export default function Watchpage() {
     loadSessions();
   }, [user, currentSessionId]);
 
+  // Load playlist videos if playlistId is in URL and queue is empty
+  useEffect(() => {
+    const loadPlaylistVideos = async () => {
+      if (playlistId && queue.length === 0) {
+        try {
+          console.log("[Watchpage] Loading playlist videos for:", playlistId);
+          const playlistUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
+          const res = await api.get<{ 
+            data: { videos: Array<{ id: string; title: string }> } 
+          }>(`playlists/videos?url=${encodeURIComponent(playlistUrl)}`);
+          
+          if (res.data.videos && res.data.videos.length > 0) {
+            console.log("[Watchpage] Loaded", res.data.videos.length, "videos from playlist");
+            setQueue(res.data.videos);
+          }
+        } catch (error) {
+          console.warn("[Watchpage] Failed to load playlist videos:", error);
+          // Will fall back to player's getPlaylist callback
+        }
+      }
+    };
+    loadPlaylistVideos();
+  }, [playlistId]);
+
   // Load data from server if logged in
   useEffect(() => {
     const loadServerData = async () => {
@@ -388,7 +412,7 @@ export default function Watchpage() {
     };
   }, [videoId, duration, user, profile]);
 
-  const fetchTitle = async (id: string) => {
+  const fetchTitle = useCallback(async (id: string) => {
     try {
       const response = await fetch(
         `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`,
@@ -398,7 +422,7 @@ export default function Watchpage() {
     } catch (e) {
       return id;
     }
-  };
+  }, []);
 
   const fetchTranscript = async (id: string) => {
     try {
@@ -490,11 +514,41 @@ export default function Watchpage() {
 
   const handlePlaylistLoaded = useCallback(
     async (ids: string[]) => {
-      // We no longer automatically import entire playlists into the session queue
-      // to keep it focused on videos the user explicitly chose or added.
-      console.log("[Watchpage] Playlist detected but not auto-imported:", ids.length, "videos");
+      if (queue.length > 1) {
+        console.log("[Watchpage] Playlist detected but queue already contains items. Skipping auto-import.");
+        return;
+      }
+
+      console.log("[Watchpage] Importing playlist videos into queue:", ids.length, "videos");
+      
+      const initialPlaylistQueue = ids.map((id, index) => ({
+        id,
+        title: `Video ${index + 1} (${id})`,
+      }));
+      setQueue(initialPlaylistQueue);
+
+      const targetIds = ids.slice(0, 30);
+      try {
+        const titlePromises = targetIds.map(async (id) => {
+          const title = await fetchTitle(id);
+          return { id, title };
+        });
+        const resolvedTitles = await Promise.all(titlePromises);
+        
+        setQueue((prevQueue) => {
+          return prevQueue.map((item) => {
+            const resolved = resolvedTitles.find((r) => r.id === item.id);
+            if (resolved) {
+              return { ...item, title: resolved.title };
+            }
+            return item;
+          });
+        });
+      } catch (err) {
+        console.error("Failed to fetch playlist titles", err);
+      }
     },
-    [],
+    [queue, fetchTitle],
   );
 
   const handleProgress = useCallback((time: number) => {
@@ -761,7 +815,8 @@ export default function Watchpage() {
         
         let errorMessage = "Sorry, I encountered an error. Please make sure you are logged in correctly!";
         
-        if (error.message?.includes("503") || error.message?.includes("demand")) {
+        // Handle Gemini 503 or high demand
+        if (error.message?.includes("503") || error.message?.includes("demand") || (error.status === 503)) {
           errorMessage = "AI is currently under high demand and unavailable. Please try again in a moment!";
         }
 
@@ -769,6 +824,7 @@ export default function Watchpage() {
           id: Date.now().toString(),
           role: "ai",
           text: errorMessage,
+          timestamp: currentTime,
         };
         setVideoDataMap((prev) => ({
           ...prev,
@@ -829,16 +885,53 @@ export default function Watchpage() {
     name: string,
     description?: string,
     coverUrl?: string,
+    initialUrl?: string,
   ) => {
     try {
+      let initialQueue: QueueItem[] = [];
+      let videoIdToNavigate = "";
+      let playlistIdToNavigate = "";
+
+      if (initialUrl) {
+        let id = initialUrl;
+        try {
+          const url = new URL(initialUrl);
+          if (url.hostname.includes("youtube.com")) {
+            id = url.searchParams.get("v") || id;
+            const plist = url.searchParams.get("list");
+            if (plist) playlistIdToNavigate = plist;
+          } else if (url.hostname.includes("youtu.be")) {
+            id = url.pathname.slice(1);
+          }
+        } catch (e) {}
+        
+        if (id) {
+          videoIdToNavigate = id;
+          const title = await fetchTitle(id);
+          initialQueue = [{ id, title }];
+        }
+      }
+
       const res = await api.post<{ data: Session }>("sessions", {
         name,
         description,
         coverUrl,
+        initialUrl,
+        queue: initialQueue,
       });
+
       setSessions((prev) => [res.data, ...prev]);
       setCurrentSessionId(res.data.id);
       localStorage.setItem("bloc_active_session_id", res.data.id);
+
+      if (videoIdToNavigate) {
+        const queryParams = new URLSearchParams();
+        queryParams.set("v", videoIdToNavigate);
+        if (playlistIdToNavigate) {
+          queryParams.set("list", playlistIdToNavigate);
+        }
+        navigate(`/watch?${queryParams.toString()}`);
+      }
     } catch (error) {
       console.error("Failed to create session", error);
     }
